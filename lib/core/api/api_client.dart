@@ -9,14 +9,14 @@ class ApiClient {
 
   ApiClient({required this.baseUrl}) : _client = http.Client();
 
-  Future<http.Response> get(String endpoint) async {
+  Future<http.Response> get(String endpoint, {Map<String, String>? headers}) async {
     final url = Uri.parse('$baseUrl$endpoint');
-    return await _client.get(url);
+    return await _client.get(url, headers: headers);
   }
 
-  Future<http.Response> post(String endpoint, {Object? body}) async {
+  Future<http.Response> post(String endpoint, {Object? body, Map<String, String>? headers}) async {
     final url = Uri.parse('$baseUrl$endpoint');
-    return await _client.post(url, body: body);
+    return await _client.post(url, body: body, headers: headers);
   }
 
   // Adicione outros métodos (put, delete) conforme necessário

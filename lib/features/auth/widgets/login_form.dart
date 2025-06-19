@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/utils/validators.dart';
+import '../auth_service.dart';
 
 class LoginForm extends StatefulWidget {
   @override
@@ -10,6 +11,26 @@ class _LoginFormState extends State<LoginForm> {
   final _formKey = GlobalKey<FormState>();
   String? _email;
   String? _password;
+  bool _isLoading = false;
+  String? _message;
+
+  Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) return;
+    _formKey.currentState!.save();
+    setState(() {
+      _isLoading = true;
+      _message = null;
+    });
+    final result = await AuthService().login(_email!, _password!);
+    setState(() {
+      _isLoading = false;
+      if (result.success) {
+        Navigator.pushReplacementNamed(context, result.route!);
+      } else {
+        _message = result.message;
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,14 +51,23 @@ class _LoginFormState extends State<LoginForm> {
             onSaved: (value) => _password = value,
           ),
           SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: () {
-              if (_formKey.currentState!.validate()) {
-                _formKey.currentState!.save();
-                // Chamar serviço de autenticação
-              }
-            },
-            child: Text('Entrar'),
+          _isLoading
+              ? CircularProgressIndicator()
+              : ElevatedButton(
+                  onPressed: _login,
+                  child: Text('Entrar'),
+                ),
+          if (_message != null) ...[
+            SizedBox(height: 16),
+            Text(_message!, style: TextStyle(color: Colors.red)),
+          ],
+          TextButton(
+            onPressed: () => Navigator.pushNamed(context, '/register'),
+            child: Text('Cadastre-se'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pushNamed(context, '/forgot-password'),
+            child: Text('Esqueci minha senha'),
           ),
         ],
       ),
