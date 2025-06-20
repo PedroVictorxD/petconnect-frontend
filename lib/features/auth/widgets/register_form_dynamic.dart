@@ -51,7 +51,7 @@ class _DynamicRegisterFormState extends State<DynamicRegisterForm> {
       try {
         final message = await _authService.register(userData);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
+          SnackBar(content: Text('Cadastro realizado com sucesso! Redirecionando...'), backgroundColor: Colors.green),
         );
         _formKey.currentState?.reset();
         _fullNameController.clear();
@@ -60,6 +60,10 @@ class _DynamicRegisterFormState extends State<DynamicRegisterForm> {
         setState(() {
           _selectedUserType = null;
         });
+        await Future.delayed(const Duration(seconds: 2));
+        if (mounted) {
+          Navigator.of(context).pushReplacementNamed('/');
+        }
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.toString().replaceFirst("Exception: ", ""))),

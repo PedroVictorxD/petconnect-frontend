@@ -17,15 +17,15 @@ class LoginScreen extends StatelessWidget {
               children: [
                 // Logo
                 Container(
-                  width: 80,
-                  height: 80,
+                  width: 120,
+                  height: 120,
                   decoration: BoxDecoration(
                     color: AppTheme.primaryColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Icon(
                     Icons.pets,
-                    size: 40,
+                    size: 60,
                     color: AppTheme.primaryColor,
                   ),
                 ),
