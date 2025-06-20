@@ -6,6 +6,7 @@ class Endpoints {
 
   // Auth
   static const String login = '/api/auth/login';
+  static const String register = '/api/auth/register';
 
   // Admin
   static const String adminDashboard = '/api/admin/dashboard';

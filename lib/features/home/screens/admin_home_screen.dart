@@ -54,14 +54,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             scrollDirection: Axis.horizontal,
             child: DataTable(
               columns: const [
-                DataColumn(label: Text('ID')),
                 DataColumn(label: Text('Nome Completo')),
                 DataColumn(label: Text('Email')),
                 DataColumn(label: Text('Tipo')),
               ],
               rows: users.map((user) {
                 return DataRow(cells: [
-                  DataCell(Text(user.id)),
                   DataCell(Text(user.fullName)),
                   DataCell(Text(user.email)),
                   DataCell(Text(user.userType)),

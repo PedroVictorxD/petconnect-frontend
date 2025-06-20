@@ -41,6 +41,21 @@ class AuthService {
     await prefs.remove('user');
   }
 
+  Future<String> register(Map<String, dynamic> userData) async {
+    final response = await _apiClient.post(
+      Endpoints.register,
+      body: userData,
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+       final responseBody = jsonDecode(response.body);
+       return responseBody['message'] ?? 'Cadastro realizado com sucesso!';
+    } else {
+       final responseBody = jsonDecode(response.body);
+       throw Exception(responseBody['message'] ?? 'Falha no cadastro.');
+    }
+  }
+
   Future<User?> getAuthenticatedUser() async {
     final prefs = await SharedPreferences.getInstance();
     final userString = prefs.getString('user');
