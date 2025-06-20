@@ -93,40 +93,9 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Logo
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Icon(
-                    Icons.pets,
-                    size: 40,
-                    color: AppTheme.primaryColor,
-                  ),
-                ),
-                SizedBox(height: 24),
-                
-                // Título
-                Text(
-                  'Crie sua conta',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    color: AppTheme.textPrimaryColor,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(height: 8),
-                
-                Text(
-                  'Preencha seus dados para começar',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppTheme.textSecondaryColor,
-                  ),
-                ),
+                // Header animado e logo grande
+                _buildHeader(context),
                 SizedBox(height: 32),
-                
                 // Formulário de registro
                 DynamicRegisterForm(),
               ],

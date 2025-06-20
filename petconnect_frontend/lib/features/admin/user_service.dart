@@ -41,4 +41,18 @@ class UserService {
     // Lógica para chamar DELETE /api/admin/users/{userId}
     await Future.delayed(const Duration(seconds: 1));
   }
+
+  Future<Map<String, dynamic>> getAdminDashboard() async {
+    final response = await _apiClient.get(Endpoints.adminDashboard);
+    if (response.statusCode == 200) {
+      final responseBody = jsonDecode(response.body);
+      if (responseBody['success'] == true && responseBody['data'] != null) {
+        return responseBody['data'] as Map<String, dynamic>;
+      } else {
+        throw Exception(responseBody['message'] ?? 'Falha ao buscar dashboard do admin.');
+      }
+    } else {
+      throw Exception('Erro ao buscar dashboard do admin.');
+    }
+  }
 } 

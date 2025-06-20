@@ -5,28 +5,26 @@ class LandingPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Header/Navigation
-            _buildHeader(context),
-            
-            // Hero Section
-            _buildHeroSection(context),
-            
-            // Features Section
-            _buildFeaturesSection(context),
-            
-            // How it works Section
-            _buildHowItWorksSection(context),
-            
-            // CTA Section
-            _buildCTASection(context),
-            
-            // Footer
-            _buildFooter(context),
-          ],
-        ),
+      backgroundColor: AppTheme.backgroundColor,
+      body: Column(
+        children: [
+          _buildHeader(context),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  _buildHeroSection(context),
+                  const SizedBox(height: 40),
+                  _buildProfileCards(context),
+                  const SizedBox(height: 60),
+                  _buildHowItWorksSection(context),
+                  const SizedBox(height: 60),
+                  _buildFooterLinks(context),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -252,142 +250,62 @@ class LandingPage extends StatelessWidget {
     );
   }
 
-  Widget _buildFeaturesSection(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 80),
-      child: Column(
+  Widget _buildProfileCards(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
-            'Por que escolher o Pet Connect?',
-            style: Theme.of(context).textTheme.displayMedium?.copyWith(
-              color: AppTheme.textPrimaryColor,
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
+          _profileCard(
+            context,
+            icon: Icons.pets,
+            title: 'Para Tutores',
+            description: 'Encontre veterinários e produtos de qualidade para seu pet.',
+            color: AppTheme.primaryColor,
           ),
-          SizedBox(height: 16),
-          Text(
-            'Oferecemos soluções completas para todos os envolvidos no cuidado dos pets',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: AppTheme.textSecondaryColor,
-            ),
-            textAlign: TextAlign.center,
+          const SizedBox(width: 24),
+          _profileCard(
+            context,
+            icon: Icons.medical_services,
+            title: 'Para Veterinários',
+            description: 'Gerencie seus serviços e conecte-se com tutores.',
+            color: AppTheme.secondaryColor,
           ),
-          SizedBox(height: 60),
-          
-          // Features Grid
-          Row(
-            children: [
-              Expanded(
-                child: _buildFeatureCard(
-                  context,
-                  icon: Icons.person,
-                  title: 'Para Tutores',
-                  description: 'Encontre veterinários e produtos de qualidade para seu pet.',
-                  color: AppTheme.primaryColor,
-                  petIcon: Icons.pets,
-                ),
-              ),
-              SizedBox(width: 24),
-              Expanded(
-                child: _buildFeatureCard(
-                  context,
-                  icon: Icons.local_hospital,
-                  title: 'Para Veterinários',
-                  description: 'Gerencie seus serviços e conecte-se com tutores.',
-                  color: AppTheme.secondaryColor,
-                  petIcon: Icons.medical_services,
-                ),
-              ),
-              SizedBox(width: 24),
-              Expanded(
-                child: _buildFeatureCard(
-                  context,
-                  icon: Icons.store,
-                  title: 'Para Lojistas',
-                  description: 'Venda seus produtos e alcance mais clientes.',
-                  color: AppTheme.accentColor,
-                  petIcon: Icons.shopping_bag,
-                ),
-              ),
-            ],
+          const SizedBox(width: 24),
+          _profileCard(
+            context,
+            icon: Icons.store,
+            title: 'Para Lojistas',
+            description: 'Venda seus produtos e alcance mais clientes.',
+            color: AppTheme.accentColor,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFeatureCard(BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String description,
-    required Color color,
-    required IconData petIcon,
-  }) {
-    return Card(
-      child: Padding(
-        padding: EdgeInsets.all(32),
-        child: Column(
-          children: [
-            // Main icon
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
+  Widget _profileCard(BuildContext context, {required IconData icon, required String title, required String description, required Color color}) {
+    return Expanded(
+      child: Card(
+        elevation: 6,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        color: color.withOpacity(0.08),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircleAvatar(
+                radius: 36,
+                backgroundColor: color,
+                child: Icon(icon, color: Colors.white, size: 36),
               ),
-              child: Icon(
-                icon,
-                size: 40,
-                color: color,
-              ),
-            ),
-            SizedBox(height: 24),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 16),
-            Text(
-              description,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppTheme.textSecondaryColor,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 20),
-            // Pet icon decoration
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    petIcon,
-                    size: 16,
-                    color: color,
-                  ),
-                  SizedBox(width: 6),
-                  Text(
-                    'Pet Friendly',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: color,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+              const SizedBox(height: 18),
+              Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: color)),
+              const SizedBox(height: 10),
+              Text(description, style: TextStyle(color: AppTheme.textPrimaryColor, fontSize: 15), textAlign: TextAlign.center),
+            ],
+          ),
         ),
       ),
     );
@@ -513,101 +431,7 @@ class LandingPage extends StatelessWidget {
     );
   }
 
-  Widget _buildCTASection(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 80),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppTheme.primaryColor,
-            AppTheme.primaryDarkColor,
-          ],
-        ),
-      ),
-      child: Column(
-        children: [
-          // Pet icons decoration
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _buildSmallPetIcon(Icons.pets, Colors.white.withOpacity(0.8)),
-              SizedBox(width: 20),
-              _buildSmallPetIcon(Icons.favorite, Colors.white.withOpacity(0.8)),
-              SizedBox(width: 20),
-              _buildSmallPetIcon(Icons.pets, Colors.white.withOpacity(0.8)),
-            ],
-          ),
-          SizedBox(height: 30),
-          Text(
-            'Pronto para começar?',
-            style: Theme.of(context).textTheme.displayMedium?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 16),
-          Text(
-            'Junte-se à comunidade Pet Connect e descubra uma nova forma de cuidar dos pets.',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: Colors.white.withOpacity(0.9),
-            ),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 40),
-          ElevatedButton(
-            onPressed: () => Navigator.pushNamed(context, '/register'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: AppTheme.primaryColor,
-              padding: EdgeInsets.symmetric(horizontal: 40, vertical: 20),
-              textStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.pets, size: 20),
-                SizedBox(width: 8),
-                Text('Criar Conta Grátis'),
-              ],
-            ),
-          ),
-          SizedBox(height: 30),
-          // Bottom pet icons
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _buildSmallPetIcon(Icons.favorite, Colors.white.withOpacity(0.6)),
-              SizedBox(width: 20),
-              _buildSmallPetIcon(Icons.pets, Colors.white.withOpacity(0.6)),
-              SizedBox(width: 20),
-              _buildSmallPetIcon(Icons.favorite, Colors.white.withOpacity(0.6)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSmallPetIcon(IconData icon, Color color) {
-    return Container(
-      width: 30,
-      height: 30,
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Icon(
-        icon,
-        color: color,
-        size: 16,
-      ),
-    );
-  }
-
-  Widget _buildFooter(BuildContext context) {
+  Widget _buildFooterLinks(BuildContext context) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 24, vertical: 40),
       color: AppTheme.textPrimaryColor,
