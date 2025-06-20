@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Miscellaneous
 *.class
 *.log
@@ -44,26 +43,3 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
-=======
-# Maven
-apache-maven-3.9.6-bin.tar.gz
-target/
-*.jar
-*.war
-
-# IntelliJ
-.idea/
-*.iml
-
-# VS Code
-.vscode/
-
-# Flutter
-build/
-.dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
-*.iml
-*.packages
-pubspec.lock 
->>>>>>> 67bf17b (feat: Implementa frontend web com Flutter e refatora serviços)
