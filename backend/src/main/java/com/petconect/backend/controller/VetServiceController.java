@@ -9,7 +9,11 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
+<<<<<<< HEAD
 @RequestMapping("/vetservices")
+=======
+@RequestMapping("/api/services")
+>>>>>>> dev
 @RequiredArgsConstructor
 public class VetServiceController {
     private final VetServiceRepository vetServiceRepository;

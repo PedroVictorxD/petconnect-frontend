@@ -9,7 +9,11 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
+<<<<<<< HEAD
 @RequestMapping("/products")
+=======
+@RequestMapping("/api/products")
+>>>>>>> dev
 @RequiredArgsConstructor
 public class ProductController {
     private final ProductRepository productRepository;

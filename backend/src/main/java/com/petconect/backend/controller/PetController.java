@@ -9,13 +9,24 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
+<<<<<<< HEAD
 @RequestMapping("/pets")
+=======
+@RequestMapping("/api/pets")
+>>>>>>> dev
 @RequiredArgsConstructor
 public class PetController {
     private final PetRepository petRepository;
 
     @GetMapping
+<<<<<<< HEAD
     public List<Pet> getAll() {
+=======
+    public List<Pet> getByTutor(@RequestParam(required = false) Long tutorId) {
+        if (tutorId != null) {
+            return petRepository.findByTutorId(tutorId);
+        }
+>>>>>>> dev
         return petRepository.findAll();
     }
 
