@@ -4,7 +4,7 @@ Frontend Flutter Web para o sistema PetConnect, uma plataforma completa para ges
 
 ## 🚀 Funcionalidades
 
-### Autenticação e Usuários
+### Autenticação e Usuários.
 - **Login/Registro**: Sistema completo de autenticação
 - **Tipos de Usuário**: 
   - **Tutor**: Gerencia seus pets e visualiza produtos/serviços

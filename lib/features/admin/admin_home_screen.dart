@@ -252,18 +252,18 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> with TickerProviderSt
   Widget _buildPetsTable(List<Pet> pets) {
     return _buildTableContainer(
       [
+        const DataColumn(label: Text('ID')),
         const DataColumn(label: Text('Nome')),
-        const DataColumn(label: Text('Tipo')),
+        const DataColumn(label: Text('Espécie')),
         const DataColumn(label: Text('Raça')),
         const DataColumn(label: Text('Idade')),
-        const DataColumn(label: Text('Peso')),
       ],
       pets.map((pet) => DataRow(cells: [
+        DataCell(Text(pet.id.toString())),
         DataCell(Text(pet.name)),
-        DataCell(Text(pet.type)),
-        DataCell(Text(pet.breed ?? '-')),
-        DataCell(Text('${pet.age} anos')),
-        DataCell(Text('${pet.weight} kg')),
+        DataCell(Text(pet.species)),
+        DataCell(Text(pet.breed ?? 'N/A')),
+        DataCell(Text(pet.age.toString())),
       ])).toList(),
       emptyMessage: "Nenhum pet encontrado."
     );

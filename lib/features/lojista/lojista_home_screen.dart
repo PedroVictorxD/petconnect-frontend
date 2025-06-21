@@ -49,55 +49,21 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
     super.dispose();
   }
 
+  void _clearForm() {
+    _formKey.currentState?.reset();
+    _nameController.clear();
+    _descriptionController.clear();
+    _priceController.clear();
+    _measurementUnitController.clear();
+  }
+
   void _showAddProductDialog() {
+    _clearForm();
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Adicionar Novo Produto'),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        content: SizedBox(
-          width: 500,
-          child: Form(
-            key: _formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(labelText: 'Nome do Produto'),
-                    validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
-                  ),
-                  TextFormField(
-                    controller: _descriptionController,
-                    decoration: const InputDecoration(labelText: 'Descrição'),
-                    maxLines: 2,
-                  ),
-                  TextFormField(
-                    controller: _priceController,
-                    decoration: const InputDecoration(labelText: 'Preço (R\$)', prefixIcon: Icon(Icons.attach_money)),
-                    keyboardType: TextInputType.number,
-                    validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
-                  ),
-                  TextFormField(
-                    controller: _measurementUnitController,
-                    decoration: const InputDecoration(labelText: 'Unidade de Medida (kg, un, etc.)'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton(
-            onPressed: _addProduct,
-            child: const Text('Adicionar'),
-          ),
-        ],
+      builder: (context) => _buildFormDialog(
+        title: 'Adicionar Novo Produto',
+        onSave: _addProduct,
       ),
     );
   }
@@ -121,27 +87,125 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
 
     final success = await dataProvider.createProduct(product);
     
-    if (success) {
+    if (mounted) {
       Navigator.pop(context);
-      _clearForm();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Produto adicionado com sucesso!')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(dataProvider.error ?? 'Erro ao adicionar produto'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Produto adicionado com sucesso!'), backgroundColor: Colors.green));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(dataProvider.error ?? 'Erro ao adicionar produto'), backgroundColor: Colors.red));
+      }
     }
   }
 
-  void _clearForm() {
-    _nameController.clear();
-    _descriptionController.clear();
-    _priceController.clear();
-    _measurementUnitController.clear();
+  void _showEditProductDialog(Product product) {
+    _clearForm();
+    _nameController.text = product.name;
+    _descriptionController.text = product.description ?? '';
+    _priceController.text = product.price.toString().replaceAll('.', ',');
+    _measurementUnitController.text = product.measurementUnit ?? '';
+
+    showDialog(
+      context: context,
+      builder: (context) => _buildFormDialog(
+        title: 'Editar Produto',
+        onSave: () => _updateProduct(product.id!),
+      ),
+    );
+  }
+
+  Future<void> _updateProduct(int productId) async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final dataProvider = Provider.of<DataProvider>(context, listen: false);
+
+    final product = Product(
+      id: productId,
+      name: _nameController.text,
+      description: _descriptionController.text,
+      price: double.parse(_priceController.text.replaceAll(',', '.')),
+      measurementUnit: _measurementUnitController.text,
+      ownerId: authProvider.currentUser?.id,
+      ownerName: authProvider.currentUser?.name,
+      ownerLocation: authProvider.currentUser?.location,
+      ownerPhone: authProvider.currentUser?.phone,
+    );
+
+    final success = await dataProvider.updateProduct(productId, product);
+
+    if (mounted) {
+      Navigator.pop(context);
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Produto atualizado com sucesso!'), backgroundColor: Colors.green));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(dataProvider.error ?? 'Erro ao atualizar produto'), backgroundColor: Colors.red));
+      }
+    }
+  }
+
+  void _handleDeleteProduct(int productId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirmar Exclusão'),
+        content: const Text('Tem certeza de que deseja excluir este produto? Esta ação não pode ser desfeita.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _deleteProduct(productId);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteProduct(int productId) async {
+    final dataProvider = Provider.of<DataProvider>(context, listen: false);
+    final success = await dataProvider.deleteProduct(productId);
+
+    if (mounted) {
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Produto excluído com sucesso!'), backgroundColor: Colors.green));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(dataProvider.error ?? 'Erro ao excluir produto'), backgroundColor: Colors.red));
+      }
+    }
+  }
+
+  Widget _buildFormDialog({required String title, required VoidCallback onSave}) {
+    return AlertDialog(
+      title: Text(title),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      content: SizedBox(
+        width: 500,
+        child: Form(
+          key: _formKey,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(controller: _nameController, decoration: const InputDecoration(labelText: 'Nome do Produto'), validator: (v) => v!.isEmpty ? 'Obrigatório' : null),
+                TextFormField(controller: _descriptionController, decoration: const InputDecoration(labelText: 'Descrição'), maxLines: 2),
+                TextFormField(controller: _priceController, decoration: const InputDecoration(labelText: 'Preço (R\$)', prefixIcon: Icon(Icons.attach_money)), keyboardType: TextInputType.number, validator: (v) => v!.isEmpty ? 'Obrigatório' : null),
+                TextFormField(controller: _measurementUnitController, decoration: const InputDecoration(labelText: 'Unidade de Medida (kg, un, etc.)')),
+              ],
+            ),
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+        ElevatedButton(onPressed: onSave, child: const Text('Salvar')),
+      ],
+    );
   }
 
   @override
@@ -173,12 +237,23 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
 
           return FadeTransition(
             opacity: _fadeAnimation,
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              children: [
-                _buildHeader(authProvider),
-                const SizedBox(height: 24),
-                _buildProductList(myProducts),
+            child: CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildHeader(authProvider),
+                        const SizedBox(height: 24),
+                        const Text("Meus Produtos", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)),
+                         const SizedBox(height: 8),
+                      ],
+                    ),
+                  ),
+                ),
+                _buildProductGrid(myProducts),
               ],
             ),
           );
@@ -230,15 +305,29 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
     );
   }
 
-  Widget _buildProductList(List<Product> products) {
+  Widget _buildProductGrid(List<Product> products) {
     if (products.isEmpty) {
-      return const Center(child: Padding(padding: EdgeInsets.all(32.0), child: Text("Você ainda não cadastrou nenhum produto.", style: TextStyle(color: Colors.grey))));
+      return const SliverToBoxAdapter(
+          child: Center(
+              child: Padding(
+                  padding: EdgeInsets.all(32.0),
+                  child: Text("Você ainda não cadastrou nenhum produto.",
+                      style: TextStyle(color: Colors.grey)))));
     }
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: products.length,
-      itemBuilder: (context, index) => _buildProductCard(products[index]),
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      sliver: SliverGrid(
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 400.0,
+          mainAxisSpacing: 16.0,
+          crossAxisSpacing: 16.0,
+          childAspectRatio: 2.8,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (BuildContext context, int index) => _buildProductCard(products[index]),
+          childCount: products.length,
+        ),
+      ),
     );
   }
 
@@ -246,21 +335,41 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
     return Card(
       elevation: 2,
       shadowColor: Colors.black12,
-      margin: const EdgeInsets.symmetric(vertical: 8),
+      margin: const EdgeInsets.all(0),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-        leading: CircleAvatar(backgroundColor: const Color(0xFF764ba2).withOpacity(0.1), child: const Icon(Icons.shopping_bag, color: Color(0xFF764ba2))),
-        title: Text(
-          product.name,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Text(
-          product.description ?? 'Sem descrição',
-        ),
-        trailing: Text(
-          'R\$ ${product.price.toStringAsFixed(2)}',
-          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Row(
+          children: [
+            CircleAvatar(backgroundColor: const Color(0xFF764ba2).withOpacity(0.1), child: const Icon(Icons.shopping_bag, color: Color(0xFF764ba2))),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text(product.description ?? 'Sem descrição', style: TextStyle(color: Colors.grey[600], fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
+                  const Spacer(),
+                  Text('R\$ ${product.price.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 15)),
+                ],
+              ),
+            ),
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'edit') {
+                  _showEditProductDialog(product);
+                } else if (value == 'delete') {
+                  _handleDeleteProduct(product.id!);
+                }
+              },
+              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                const PopupMenuItem<String>(value: 'edit', child: ListTile(leading: Icon(Icons.edit), title: Text('Editar'))),
+                const PopupMenuItem<String>(value: 'delete', child: ListTile(leading: Icon(Icons.delete), title: Text('Excluir'))),
+              ],
+            ),
+          ],
         ),
       ),
     );
