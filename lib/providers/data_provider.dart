@@ -10,6 +10,8 @@ class DataProvider extends ChangeNotifier {
   List<Product> _products = [];
   List<VetService> _vetServices = [];
   List<User> _allUsers = [];
+  List<Product> _allProducts = [];
+  List<VetService> _allVetServices = [];
   bool _isLoading = false;
   String? _error;
 
@@ -17,6 +19,8 @@ class DataProvider extends ChangeNotifier {
   List<Product> get products => _products;
   List<VetService> get vetServices => _vetServices;
   List<User> get allUsers => _allUsers;
+  List<Product> get allProducts => _allProducts;
+  List<VetService> get allVetServices => _allVetServices;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
@@ -28,6 +32,8 @@ class DataProvider extends ChangeNotifier {
 
     try {
       _allUsers = await ApiService.getAllUsers();
+      _allProducts = await ApiService.getAllProducts();
+      _allVetServices = await ApiService.getAllVetServices();
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -179,22 +185,23 @@ class DataProvider extends ChangeNotifier {
   }
 
   // Atualizar produto
-  Future<bool> updateProduct(int id, Product product) async {
+  Future<bool> updateProduct(Product product) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
+
     try {
-      final updatedProduct = await ApiService.updateProduct(id, product);
+      final updatedProduct = await ApiService.updateProduct(product);
       if (updatedProduct != null) {
-        final index = _products.indexWhere((p) => p.id == id);
+        final index = _allProducts.indexWhere((p) => p.id == product.id);
         if (index != -1) {
-          _products[index] = updatedProduct;
+          _allProducts[index] = updatedProduct;
         }
         _isLoading = false;
         notifyListeners();
         return true;
       }
-      _error = 'Erro ao atualizar produto';
+       _error = 'Erro ao atualizar produto';
       _isLoading = false;
       notifyListeners();
       return false;
@@ -276,16 +283,17 @@ class DataProvider extends ChangeNotifier {
   }
 
   // Atualizar serviço veterinário
-  Future<bool> updateVetService(int id, VetService service) async {
+  Future<bool> updateVetService(VetService service) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
+
     try {
-      final updatedService = await ApiService.updateVetService(id, service);
+      final updatedService = await ApiService.updateVetService(service);
       if (updatedService != null) {
-        final index = _vetServices.indexWhere((s) => s.id == id);
+        final index = _allVetServices.indexWhere((s) => s.id == service.id);
         if (index != -1) {
-          _vetServices[index] = updatedService;
+          _allVetServices[index] = updatedService;
         }
         _isLoading = false;
         notifyListeners();
@@ -340,6 +348,68 @@ class DataProvider extends ChangeNotifier {
     _products.clear();
     _vetServices.clear();
     _allUsers.clear();
+    _allProducts.clear();
+    _allVetServices.clear();
     notifyListeners();
+  }
+
+  // Deletar genérico
+  Future<bool> deleteData(String type, int id) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final success = await ApiService.deleteData(type, id);
+      if (success) {
+        // Remover da lista local
+        switch(type) {
+          case 'user': _allUsers.removeWhere((item) => item.id == id); break;
+          case 'pet': _pets.removeWhere((item) => item.id == id); break;
+          case 'product': _allProducts.removeWhere((item) => item.id == id); break;
+          case 'vet-service': _allVetServices.removeWhere((item) => item.id == id); break;
+        }
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      }
+       _error = 'Erro ao deletar $type';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _error = 'Erro ao deletar $type: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> updateUser(User user) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final updatedUser = await ApiService.updateUser(user);
+      if (updatedUser != null) {
+        final index = _allUsers.indexWhere((u) => u.id == user.id);
+        if (index != -1) {
+          _allUsers[index] = updatedUser;
+        }
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      }
+      _error = 'Erro ao atualizar usuário';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _error = 'Erro ao atualizar usuário: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
   }
 } 

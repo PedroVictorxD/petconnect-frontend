@@ -17,6 +17,7 @@ class User {
   final String? responsibleName; // Para lojistas
   final String? storeType; // Para lojistas
   final String? operatingHours; // Para lojistas
+  final String? dtype; // Adicionado para identificar o tipo de usuário
 
   User({
     this.id,
@@ -32,13 +33,14 @@ class User {
     this.responsibleName,
     this.storeType,
     this.operatingHours,
+    this.dtype,
   });
 
   factory User.fromJson(Map<String, dynamic> json) => _$UserFromJson(json);
   Map<String, dynamic> toJson() => _$UserToJson(this);
 
-  bool get isVeterinario => crmv != null;
-  bool get isLojista => cnpj != null;
-  bool get isTutor => !isVeterinario && !isLojista;
-  bool get isAdmin => false; // Implementar lógica específica se necessário
+  bool get isVeterinario => dtype == 'Veterinario';
+  bool get isLojista => dtype == 'Lojista';
+  bool get isTutor => dtype == 'Tutor';
+  bool get isAdmin => dtype == 'Admin';
 } 

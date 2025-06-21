@@ -20,6 +20,7 @@ User _$UserFromJson(Map<String, dynamic> json) => User(
   responsibleName: json['responsibleName'] as String?,
   storeType: json['storeType'] as String?,
   operatingHours: json['operatingHours'] as String?,
+  dtype: json['dtype'] as String?,
 );
 
 Map<String, dynamic> _$UserToJson(User instance) => <String, dynamic>{
@@ -36,4 +37,5 @@ Map<String, dynamic> _$UserToJson(User instance) => <String, dynamic>{
   'responsibleName': instance.responsibleName,
   'storeType': instance.storeType,
   'operatingHours': instance.operatingHours,
+  'dtype': instance.dtype,
 };

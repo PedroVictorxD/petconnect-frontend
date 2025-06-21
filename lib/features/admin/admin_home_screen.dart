@@ -201,8 +201,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> with TickerProviderSt
         child: switch (_selectedSection) {
           'users' => _buildUsersTable(dataProvider.allUsers),
           'pets' => _buildPetsTable(dataProvider.pets),
-          'products' => _buildProductsTable(dataProvider.products),
-          'services' => _buildVetServicesTable(dataProvider.vetServices),
+          'products' => _buildProductsTable(dataProvider.allProducts),
+          'services' => _buildVetServicesTable(dataProvider.allVetServices),
           _ => const SizedBox.shrink(),
         },
       ),
@@ -238,12 +238,19 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> with TickerProviderSt
         const DataColumn(label: Text('Email')),
         const DataColumn(label: Text('Telefone')),
         const DataColumn(label: Text('Tipo')),
+        const DataColumn(label: Text('Ações')),
       ],
       users.map((user) => DataRow(cells: [
         DataCell(Text(user.name)),
         DataCell(Text(user.email)),
         DataCell(Text(user.phone ?? '-')),
-        DataCell(Text(user.isLojista ? 'Lojista' : (user.isVeterinario ? 'Veterinário' : 'Tutor'))),
+        DataCell(Text(user.dtype ?? 'Tutor')),
+        DataCell(Row(
+          children: [
+            IconButton(icon: const Icon(Icons.edit, color: Colors.blue), onPressed: () => _editUser(user)),
+            IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteItem('user', user.id!)),
+          ],
+        )),
       ])).toList(),
       emptyMessage: "Nenhum usuário encontrado."
     );
@@ -252,18 +259,22 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> with TickerProviderSt
   Widget _buildPetsTable(List<Pet> pets) {
     return _buildTableContainer(
       [
-        const DataColumn(label: Text('ID')),
         const DataColumn(label: Text('Nome')),
-        const DataColumn(label: Text('Espécie')),
+        const DataColumn(label: Text('Tipo')),
         const DataColumn(label: Text('Raça')),
-        const DataColumn(label: Text('Idade')),
+        const DataColumn(label: Text('Dono')),
+        const DataColumn(label: Text('Ações')),
       ],
       pets.map((pet) => DataRow(cells: [
-        DataCell(Text(pet.id.toString())),
         DataCell(Text(pet.name)),
         DataCell(Text(pet.type)),
         DataCell(Text(pet.breed ?? '-')),
-        DataCell(Text(pet.age.toString())),
+        DataCell(Text(pet.tutor?['name'] ?? 'Não informado')),
+        DataCell(Row(
+          children: [
+            IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteItem('pet', pet.id!)),
+          ],
+        )),
       ])).toList(),
       emptyMessage: "Nenhum pet encontrado."
     );
@@ -273,13 +284,26 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> with TickerProviderSt
     return _buildTableContainer(
       [
         const DataColumn(label: Text('Nome')),
+        const DataColumn(label: Text('Descrição')),
         const DataColumn(label: Text('Preço')),
-        const DataColumn(label: Text('Vendedor')),
+        const DataColumn(label: Text('Ações')),
       ],
       products.map((product) => DataRow(cells: [
         DataCell(Text(product.name)),
+        DataCell(SizedBox(width: 200, child: Text(product.description ?? '', overflow: TextOverflow.ellipsis))),
         DataCell(Text('R\$ ${product.price.toStringAsFixed(2)}')),
-        DataCell(Text(product.ownerName ?? '-')),
+        DataCell(Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: () => _editProduct(product),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              onPressed: () => _deleteItem('products', product.id!),
+            ),
+          ],
+        )),
       ])).toList(),
       emptyMessage: "Nenhum produto encontrado."
     );
@@ -289,15 +313,224 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> with TickerProviderSt
     return _buildTableContainer(
       [
         const DataColumn(label: Text('Nome')),
+        const DataColumn(label: Text('Descrição')),
         const DataColumn(label: Text('Preço')),
-        const DataColumn(label: Text('Fornecedor')),
+        const DataColumn(label: Text('Ações')),
       ],
       services.map((service) => DataRow(cells: [
         DataCell(Text(service.name)),
+        DataCell(SizedBox(width: 200, child: Text(service.description ?? '', overflow: TextOverflow.ellipsis))),
         DataCell(Text('R\$ ${service.price.toStringAsFixed(2)}')),
-        DataCell(Text(service.ownerName ?? '-')),
+        DataCell(Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: () => _editVetService(service),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red),
+              onPressed: () => _deleteItem('services', service.id!),
+            ),
+          ],
+        )),
       ])).toList(),
       emptyMessage: "Nenhum serviço encontrado."
+    );
+  }
+
+  // Funções para editar
+  void _editUser(User user) {
+    final nameController = TextEditingController(text: user.name);
+    final emailController = TextEditingController(text: user.email);
+    final phoneController = TextEditingController(text: user.phone);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Editar Usuário'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: nameController, decoration: InputDecoration(labelText: 'Nome')),
+                TextField(controller: emailController, decoration: InputDecoration(labelText: 'Email')),
+                TextField(controller: phoneController, decoration: InputDecoration(labelText: 'Telefone')),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(context).pop(), child: Text('Cancelar')),
+            ElevatedButton(
+              onPressed: () async {
+                final updatedUser = User(
+                  id: user.id,
+                  name: nameController.text,
+                  email: emailController.text,
+                  phone: phoneController.text,
+                  password: user.password, // a senha não é alterada aqui
+                );
+
+                final dataProvider = Provider.of<DataProvider>(context, listen: false);
+                final success = await dataProvider.updateUser(updatedUser);
+
+                Navigator.of(context).pop();
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(success ? 'Usuário atualizado com sucesso!' : 'Erro ao atualizar usuário.'),
+                    backgroundColor: success ? Colors.green : Colors.red,
+                  ),
+                );
+              },
+              child: Text('Salvar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _editProduct(Product product) {
+    final nameController = TextEditingController(text: product.name);
+    final descriptionController = TextEditingController(text: product.description);
+    final priceController = TextEditingController(text: product.price.toString());
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Editar Produto'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: nameController, decoration: InputDecoration(labelText: 'Nome')),
+                TextField(controller: descriptionController, decoration: InputDecoration(labelText: 'Descrição')),
+                TextField(controller: priceController, decoration: InputDecoration(labelText: 'Preço'), keyboardType: TextInputType.numberWithOptions(decimal: true)),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(context).pop(), child: Text('Cancelar')),
+            ElevatedButton(
+              onPressed: () async {
+                final updatedProduct = Product(
+                  id: product.id,
+                  name: nameController.text,
+                  description: descriptionController.text,
+                  price: double.tryParse(priceController.text) ?? product.price,
+                );
+
+                final dataProvider = Provider.of<DataProvider>(context, listen: false);
+                final success = await dataProvider.updateProduct(updatedProduct);
+
+                Navigator.of(context).pop();
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(success ? 'Produto atualizado com sucesso!' : 'Erro ao atualizar produto.'),
+                    backgroundColor: success ? Colors.green : Colors.red,
+                  ),
+                );
+              },
+              child: Text('Salvar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _editVetService(VetService service) {
+    final nameController = TextEditingController(text: service.name);
+    final descriptionController = TextEditingController(text: service.description);
+    final priceController = TextEditingController(text: service.price.toString());
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Editar Serviço'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: nameController, decoration: InputDecoration(labelText: 'Nome')),
+                TextField(controller: descriptionController, decoration: InputDecoration(labelText: 'Descrição')),
+                TextField(controller: priceController, decoration: InputDecoration(labelText: 'Preço'), keyboardType: TextInputType.numberWithOptions(decimal: true)),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(context).pop(), child: Text('Cancelar')),
+            ElevatedButton(
+              onPressed: () async {
+                final updatedService = VetService(
+                  id: service.id,
+                  name: nameController.text,
+                  description: descriptionController.text,
+                  price: double.tryParse(priceController.text) ?? service.price,
+                );
+
+                final dataProvider = Provider.of<DataProvider>(context, listen: false);
+                final success = await dataProvider.updateVetService(updatedService);
+
+                Navigator.of(context).pop();
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(success ? 'Serviço atualizado com sucesso!' : 'Erro ao atualizar serviço.'),
+                    backgroundColor: success ? Colors.green : Colors.red,
+                  ),
+                );
+              },
+              child: Text('Salvar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
+  // Função para deletar com confirmação
+  void _deleteItem(String type, int id) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirmar Exclusão'),
+          content: Text('Tem certeza de que deseja excluir este item? Esta ação não pode ser desfeita.'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancelar'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            TextButton(
+              child: const Text('Excluir', style: TextStyle(color: Colors.red)),
+              onPressed: () async {
+                final dataProvider = Provider.of<DataProvider>(context, listen: false);
+                bool success = false;
+                switch(type) {
+                  case 'user': success = await dataProvider.deleteData(type, id); break;
+                  case 'pet': success = await dataProvider.deleteData(type, id); break;
+                  case 'product': success = await dataProvider.deleteData(type, id); break;
+                  case 'vet-service': success = await dataProvider.deleteData(type, id); break;
+                }
+                
+                Navigator.of(context).pop(); // Fecha o diálogo
+                
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(success ? 'Item excluído com sucesso!' : 'Erro ao excluir o item.'),
+                    backgroundColor: success ? Colors.green : Colors.red,
+                  ),
+                );
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 } 
