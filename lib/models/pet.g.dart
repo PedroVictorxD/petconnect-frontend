@@ -1,0 +1,35 @@
+// GENERATED CODE - DO NOT MODIFY BY HAND
+
+part of 'pet.dart';
+
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+Pet _$PetFromJson(Map<String, dynamic> json) => Pet(
+  id: (json['id'] as num?)?.toInt(),
+  name: json['name'] as String,
+  type: json['type'] as String,
+  weight: (json['weight'] as num).toDouble(),
+  age: (json['age'] as num).toInt(),
+  activityLevel: json['activityLevel'] as String,
+  breed: json['breed'] as String?,
+  notes: json['notes'] as String?,
+  tutorId: (json['tutorId'] as num?)?.toInt(),
+  createdAt: json['createdAt'] as String?,
+  updatedAt: json['updatedAt'] as String?,
+);
+
+Map<String, dynamic> _$PetToJson(Pet instance) => <String, dynamic>{
+  'id': instance.id,
+  'name': instance.name,
+  'type': instance.type,
+  'weight': instance.weight,
+  'age': instance.age,
+  'activityLevel': instance.activityLevel,
+  'breed': instance.breed,
+  'notes': instance.notes,
+  'tutorId': instance.tutorId,
+  'createdAt': instance.createdAt,
+  'updatedAt': instance.updatedAt,
+};
