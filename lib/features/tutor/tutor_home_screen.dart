@@ -15,16 +15,16 @@ class TutorHomeScreen extends StatefulWidget {
 }
 
 class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderStateMixin {
-  final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _typeController = TextEditingController();
-  final _weightController = TextEditingController();
-  final _ageController = TextEditingController();
-  final _breedController = TextEditingController();
-  final _notesController = TextEditingController();
-  String _activityLevel = 'Médio';
+  // Formulário de Pet
+  final _petFormKey = GlobalKey<FormState>();
+  final _petNameController = TextEditingController();
+  final _petBreedController = TextEditingController();
+  final _petAgeController = TextEditingController();
+  final _petWeightController = TextEditingController();
+  final _petPhotoUrlController = TextEditingController();
+  String _petType = 'Cachorro';
 
-  // State for food calculator
+  // Calculadora
   final _calculatorWeightController = TextEditingController();
   String _calculatorPetType = 'Cachorro';
   String _calculatorLifeStage = 'Adulto';
@@ -36,38 +36,16 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
   String _selectedSection = 'pets';
   bool _isCalculatorExpanded = false;
 
-  // Formulário de Pet
-  final _petFormKey = GlobalKey<FormState>();
-  final _petNameController = TextEditingController();
-  final _petBreedController = TextEditingController(); // Raça
-  final _petAgeController = TextEditingController();
-  final _petWeightController = TextEditingController();
-  String _petSpecies = 'Cachorro'; // Espécie
-
-  // Calculadora
-  final _weightControllerCalc = TextEditingController();
-  final _activityLevelControllerCalc = ValueNotifier<String>('Moderado');
-  final _lifeStageControllerCalc = ValueNotifier<String>('Adulto');
-  String _foodRecommendation = '';
-  String _petTypeForCalc = 'Cachorro';
-
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
+    _animationController = AnimationController(duration: const Duration(milliseconds: 800), vsync: this);
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeInOut));
     _animationController.forward();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final dataProvider = Provider.of<DataProvider>(context, listen: false);
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      
-      // Carregar dados
       dataProvider.loadPets(tutorId: authProvider.currentUser?.id);
       dataProvider.loadProducts();
       dataProvider.loadVetServices();
@@ -76,57 +54,14 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _typeController.dispose();
-    _weightController.dispose();
-    _ageController.dispose();
-    _breedController.dispose();
-    _notesController.dispose();
-    _calculatorWeightController.dispose();
-    _animationController.dispose();
     _petNameController.dispose();
     _petBreedController.dispose();
     _petAgeController.dispose();
     _petWeightController.dispose();
-    _weightControllerCalc.dispose();
-    _activityLevelControllerCalc.dispose();
-    _lifeStageControllerCalc.dispose();
+    _petPhotoUrlController.dispose();
+    _calculatorWeightController.dispose();
+    _animationController.dispose();
     super.dispose();
-  }
-
-  void _showAddPetDialog() {
-    _clearPetForm();
-    _showPetFormDialog(
-      title: 'Adicionar Novo Pet',
-      onSave: _addPet,
-    );
-  }
-
-  Future<void> _addPet() async {
-    if (!_petFormKey.currentState!.validate()) return;
-
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final dataProvider = Provider.of<DataProvider>(context, listen: false);
-
-    final pet = Pet(
-      name: _petNameController.text,
-      species: _petSpecies,
-      breed: _petBreedController.text,
-      age: int.tryParse(_petAgeController.text) ?? 0,
-      weight: double.tryParse(_petWeightController.text.replaceAll(',', '.')) ?? 0.0,
-      tutorId: authProvider.currentUser!.id!,
-    );
-
-    final success = await dataProvider.createPet(pet);
-    
-    if (mounted) {
-      Navigator.pop(context);
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pet adicionado com sucesso!'), backgroundColor: Colors.green));
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(dataProvider.error ?? 'Erro ao adicionar pet'), backgroundColor: Colors.red));
-      }
-    }
   }
 
   void _clearPetForm() {
@@ -135,9 +70,108 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
     _petBreedController.clear();
     _petAgeController.clear();
     _petWeightController.clear();
-    setState(() {
-      _petSpecies = 'Cachorro';
-    });
+    _petPhotoUrlController.clear();
+    setState(() { _petType = 'Cachorro'; });
+  }
+
+  // --- ADD PET ---
+  void _showAddPetDialog() {
+    _clearPetForm();
+    showDialog(
+      context: context,
+      builder: (context) => _buildPetFormDialog(
+        title: 'Adicionar Novo Pet',
+        onSave: _addPet,
+      ),
+    );
+  }
+
+  Future<void> _addPet() async {
+    if (!_petFormKey.currentState!.validate()) return;
+    final dataProvider = Provider.of<DataProvider>(context, listen: false);
+    final pet = Pet(
+      name: _petNameController.text,
+      type: _petType,
+      breed: _petBreedController.text,
+      age: int.tryParse(_petAgeController.text) ?? 0,
+      weight: double.tryParse(_petWeightController.text.replaceAll(',', '.')) ?? 0.0,
+      photoUrl: _petPhotoUrlController.text,
+      tutor: { 'id': Provider.of<AuthProvider>(context, listen: false).currentUser!.id! },
+    );
+    final success = await dataProvider.createPet(pet);
+    if (mounted) {
+      Navigator.pop(context);
+      _showFeedback('Pet adicionado com sucesso!', success, dataProvider.error);
+    }
+  }
+
+  // --- EDIT PET ---
+  void _showEditPetDialog(Pet pet) {
+    _clearPetForm();
+    _petNameController.text = pet.name;
+    _petBreedController.text = pet.breed ?? '';
+    _petAgeController.text = pet.age.toString();
+    _petWeightController.text = pet.weight.toString().replaceAll('.', ',');
+    _petPhotoUrlController.text = pet.photoUrl ?? '';
+    _petType = pet.type;
+    showDialog(
+      context: context,
+      builder: (context) => _buildPetFormDialog(
+        title: 'Editar Pet',
+        onSave: () => _updatePet(pet),
+      ),
+    );
+  }
+
+  Future<void> _updatePet(Pet oldPet) async {
+    if (!_petFormKey.currentState!.validate()) return;
+    final dataProvider = Provider.of<DataProvider>(context, listen: false);
+    final updatedPet = Pet(
+      id: oldPet.id,
+      name: _petNameController.text,
+      type: _petType,
+      breed: _petBreedController.text,
+      age: int.tryParse(_petAgeController.text) ?? 0,
+      weight: double.tryParse(_petWeightController.text.replaceAll('.', ',')) ?? 0.0,
+      photoUrl: _petPhotoUrlController.text,
+      tutor: oldPet.tutor,
+    );
+    final success = await dataProvider.updatePet(updatedPet.id!, updatedPet);
+    if (mounted) {
+      Navigator.pop(context);
+      _showFeedback('Pet atualizado com sucesso!', success, dataProvider.error);
+    }
+  }
+
+  // --- DELETE PET ---
+  void _handleDeletePet(int petId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirmar Exclusão'),
+        content: const Text('Tem certeza de que deseja remover este pet?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              final dataProvider = Provider.of<DataProvider>(context, listen: false);
+              final success = await dataProvider.deletePet(petId);
+              if (mounted) _showFeedback('Pet removido com sucesso!', success, dataProvider.error);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showFeedback(String successMessage, bool success, String? error) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(success ? successMessage : error ?? 'Ocorreu um erro.'),
+      backgroundColor: success ? Colors.green : Colors.red,
+    ));
   }
 
   void _calculateFood() {
@@ -228,8 +262,7 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
 
           return FadeTransition(
             opacity: _fadeAnimation,
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
               children: [
                 _buildHeader(authProvider),
                 const SizedBox(height: 24),
@@ -237,7 +270,9 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
                 const SizedBox(height: 8),
                 _buildSectionToggle(dataProvider),
                 const SizedBox(height: 8),
-                _buildAnimatedContent(dataProvider),
+                Expanded(
+                  child: _buildContent(dataProvider),
+                ),
               ],
             ),
           );
@@ -394,105 +429,201 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
     );
   }
 
-  Widget _buildAnimatedContent(DataProvider dataProvider) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 400),
-      transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: SlideTransition(position: Tween<Offset>(begin: const Offset(0.0, 0.1), end: Offset.zero).animate(animation), child: child)),
-      child: Container(
-        key: ValueKey<String>(_selectedSection),
-        child: switch (_selectedSection) {
-          'pets' => _buildContentList(dataProvider.pets, (item) => _buildPetCard(item as Pet, dataProvider), "Nenhum pet cadastrado ainda."),
-          'products' => _buildContentList(dataProvider.products, (item) => _buildProductCard(item as Product, dataProvider), "Nenhum produto disponível."),
-          'services' => _buildContentList(dataProvider.vetServices, (item) => _buildVetServiceCard(item as VetService, dataProvider), "Nenhum serviço disponível."),
-          _ => const SizedBox.shrink(),
-        },
+  Widget _buildContent(DataProvider dataProvider) {
+    switch (_selectedSection) {
+      case 'pets':
+        return _buildPetGrid(dataProvider.pets, dataProvider.isLoading);
+      case 'products':
+        return _buildProductList(dataProvider.products, dataProvider.isLoading);
+      case 'services':
+        return _buildVetServiceList(dataProvider.vetServices, dataProvider.isLoading);
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildPetGrid(List<Pet> pets, bool isLoading) {
+    if (isLoading && pets.isEmpty) return const Center(child: CircularProgressIndicator());
+    if (pets.isEmpty) return const Center(child: Text('Nenhum pet cadastrado.'));
+
+    return GridView.builder(
+      padding: const EdgeInsets.all(16.0),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 3 / 4,
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+      ),
+      itemCount: pets.length,
+      itemBuilder: (context, index) {
+        final pet = pets[index];
+        return _buildPetCard(pet);
+      },
+    );
+  }
+
+  Widget _buildPetCard(Pet pet) {
+    return Card(
+      elevation: 4,
+      shadowColor: Colors.grey.withOpacity(0.3),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: InkWell(
+        onTap: () => _showPetDetails(pet),
+        borderRadius: BorderRadius.circular(15),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              flex: 3,
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+                child: (pet.photoUrl != null && pet.photoUrl!.isNotEmpty)
+                  ? Image.network(
+                      pet.photoUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => _buildPetPlaceholderIcon(),
+                    )
+                  : _buildPetPlaceholderIcon(),
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(pet.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                    const SizedBox(height: 4),
+                    Text(pet.breed ?? pet.type, style: TextStyle(color: Colors.grey.shade600)),
+                    const Spacer(),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit, color: Colors.blueGrey),
+                          onPressed: () => _showEditPetDialog(pet),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.redAccent),
+                          onPressed: () => _handleDeletePet(pet.id!),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildContentList(List<dynamic> items, Widget Function(dynamic item) cardBuilder, String emptyMessage) {
-    if (items.isEmpty) {
-      return Center(child: Padding(padding: const EdgeInsets.all(32.0), child: Text(emptyMessage, style: const TextStyle(color: Colors.grey))));
-    }
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: items.length,
-      itemBuilder: (context, index) => cardBuilder(items[index]),
+  Widget _buildPetPlaceholderIcon() {
+    return Container(
+      color: Colors.grey.shade200,
+      child: Icon(Icons.pets_rounded, size: 60, color: Colors.grey.shade400),
     );
   }
 
-  Widget _buildPetCard(Pet pet, DataProvider provider) {
+  Widget _buildProductList(List<Product> products, bool isLoading) {
+    if (isLoading && products.isEmpty) return const Center(child: CircularProgressIndicator());
+    if (products.isEmpty) return const Center(child: Text('Nenhum produto disponível.'));
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: products.length,
+      itemBuilder: (context, index) => _buildProductCard(products[index]),
+    );
+  }
+
+  Widget _buildVetServiceList(List<VetService> services, bool isLoading) {
+    if (isLoading && services.isEmpty) return const Center(child: CircularProgressIndicator());
+    if (services.isEmpty) return const Center(child: Text('Nenhum serviço disponível.'));
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: services.length,
+      itemBuilder: (context, index) => _buildVetServiceCard(services[index]),
+    );
+  }
+
+  Widget _buildProductCard(Product product) {
     return Card(
       elevation: 2,
       shadowColor: Colors.black12,
-      margin: const EdgeInsets.symmetric(vertical: 8),
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-        leading: CircleAvatar(backgroundColor: const Color(0xFF667eea).withOpacity(0.1), child: const Icon(Icons.pets, color: Color(0xFF667eea))),
-        title: Text(pet.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text('${pet.breed ?? 'Sem raça'} • ${pet.age} anos • ${pet.weight} kg'),
-        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
-        onTap: () => _showPetDetails(pet),
-      ),
-    );
-  }
-
-  Widget _buildProductCard(Product product, DataProvider provider) {
-     return Card(
-      elevation: 2,
-      shadowColor: Colors.black12,
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-        leading: CircleAvatar(backgroundColor: const Color(0xFF764ba2).withOpacity(0.1), child: const Icon(Icons.shopping_bag, color: Color(0xFF764ba2))),
+        leading: CircleAvatar(
+          backgroundColor: const Color(0xFF764ba2).withOpacity(0.1),
+          child: (product.imageUrl != null && product.imageUrl!.isNotEmpty)
+              ? ClipOval(child: Image.network(product.imageUrl!, fit: BoxFit.cover, width: 40, height: 40))
+              : const Icon(Icons.shopping_bag, color: Color(0xFF764ba2)),
+        ),
         title: Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text('R\$ ${product.price.toStringAsFixed(2)}'),
-        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
         onTap: () => _showProductDetails(product),
       ),
     );
   }
 
-  Widget _buildVetServiceCard(VetService service, DataProvider provider) {
-     return Card(
+  Widget _buildVetServiceCard(VetService service) {
+    return Card(
       elevation: 2,
       shadowColor: Colors.black12,
-      margin: const EdgeInsets.symmetric(vertical: 8),
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-        leading: CircleAvatar(backgroundColor: Colors.teal.withOpacity(0.1), child: const Icon(Icons.medical_services, color: Colors.teal)),
+        leading: CircleAvatar(backgroundColor: const Color(0xFF667eea).withOpacity(0.1), child: const Icon(Icons.medical_services, color: Color(0xFF667eea))),
         title: Text(service.name, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text('R\$ ${service.price.toStringAsFixed(2)}'),
-        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
         onTap: () => _showVetServiceDetails(service),
       ),
     );
   }
 
+  // --- SHOW DETAILS ---
+
   void _showPetDetails(Pet pet) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(pet.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        content: SingleChildScrollView(
-          child: ListBody(
-            children: <Widget>[
-              _buildDetailRow(Icons.category, 'Espécie', pet.species),
-              _buildDetailRow(Icons.monitor_weight, 'Peso', '${pet.weight} kg'),
-              _buildDetailRow(Icons.cake, 'Idade', '${pet.age} anos'),
-              _buildDetailRow(Icons.pets, 'Raça', pet.breed ?? 'Não informada'),
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              (pet.photoUrl != null && pet.photoUrl!.isNotEmpty)
+                ? CircleAvatar(backgroundImage: NetworkImage(pet.photoUrl!))
+                : CircleAvatar(child: Icon(pet.type == 'Cachorro' ? Icons.pets : Icons.cruelty_free)),
+              const SizedBox(width: 10),
+              Text(pet.name, style: const TextStyle(fontWeight: FontWeight.bold)),
             ],
           ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Fechar')),
-        ],
-      ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildDetailRow(Icons.pets, 'Espécie', pet.type),
+                if (pet.breed != null && pet.breed!.isNotEmpty)
+                  _buildDetailRow(Icons.loyalty, 'Raça', pet.breed!),
+                _buildDetailRow(Icons.cake, 'Idade', '${pet.age} anos'),
+                _buildDetailRow(Icons.monitor_weight, 'Peso', '${pet.weight} kg'),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Fechar'),
+            )
+          ],
+        );
+      },
     );
   }
 
@@ -501,7 +632,16 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
       context: context,
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(children: [const Icon(Icons.shopping_bag, color: Color(0xFF764ba2)), const SizedBox(width: 8), Text(product.name)]),
+        title: Row(children: [
+          CircleAvatar(
+            backgroundColor: const Color(0xFF764ba2).withOpacity(0.1),
+            child: (product.imageUrl != null && product.imageUrl!.isNotEmpty)
+                ? ClipOval(child: Image.network(product.imageUrl!, fit: BoxFit.cover, width: 40, height: 40))
+                : const Icon(Icons.shopping_bag, color: Color(0xFF764ba2)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(child: Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold)))
+        ]),
         content: SingleChildScrollView(
           child: ListBody(
             children: <Widget>[
@@ -565,12 +705,12 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
     );
   }
 
-  Widget _buildPetFormDialog({required String title, required VoidCallback onSave, required String petSpecies, required ValueChanged<String?> onSpeciesChanged}) {
+  Widget _buildPetFormDialog({required String title, required VoidCallback onSave}) {
     return AlertDialog(
       title: Text(title),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       content: StatefulBuilder(
-        builder: (BuildContext context, StateSetter setState) {
+        builder: (context, setDialogState) {
           return Form(
             key: _petFormKey,
             child: SingleChildScrollView(
@@ -579,20 +719,19 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
                 children: [
                   TextFormField(controller: _petNameController, decoration: const InputDecoration(labelText: 'Nome do Pet'), validator: (v) => v!.isEmpty ? 'Obrigatório' : null),
                   DropdownButtonFormField<String>(
-                    value: petSpecies,
+                    value: _petType,
                     decoration: const InputDecoration(labelText: 'Espécie'),
-                    items: ['Cachorro', 'Gato'].map((String value) {
-                      return DropdownMenuItem<String>(value: value, child: Text(value));
-                    }).toList(),
-                    onChanged: (newValue) {
-                      setState(() {
-                        onSpeciesChanged(newValue);
-                      });
-                    },
+                    items: ['Cachorro', 'Gato'].map((String value) => DropdownMenuItem<String>(value: value, child: Text(value))).toList(),
+                    onChanged: (newValue) => setDialogState(() => _petType = newValue!),
                   ),
                   TextFormField(controller: _petBreedController, decoration: const InputDecoration(labelText: 'Raça')),
                   TextFormField(controller: _petAgeController, decoration: const InputDecoration(labelText: 'Idade (anos)'), keyboardType: TextInputType.number),
                   TextFormField(controller: _petWeightController, decoration: const InputDecoration(labelText: 'Peso (kg)'), keyboardType: TextInputType.number, validator: (v) => v!.isEmpty ? 'Obrigatório' : null),
+                  TextFormField(
+                    controller: _petPhotoUrlController,
+                    decoration: const InputDecoration(labelText: 'URL da Foto do Pet'),
+                    keyboardType: TextInputType.url,
+                  ),
                 ],
               ),
             ),

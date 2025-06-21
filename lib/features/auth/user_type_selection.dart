@@ -10,16 +10,16 @@ class UserTypeSelectionScreen extends StatelessWidget {
     String endpoint;
     switch (type) {
       case 'tutor':
-        endpoint = '/tutores';
+        endpoint = '/api/tutores';
         break;
       case 'lojista':
-        endpoint = '/lojistas';
+        endpoint = '/api/lojistas';
         break;
       case 'veterinario':
-        endpoint = '/veterinarios';
+        endpoint = '/api/veterinarios';
         break;
       default:
-        endpoint = '/tutores';
+        endpoint = '/api/tutores';
     }
     try {
       final resp = await api.post(endpoint, {
