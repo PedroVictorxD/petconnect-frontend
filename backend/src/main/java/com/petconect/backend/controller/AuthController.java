@@ -1,9 +1,5 @@
 package com.petconect.backend.controller;
 
-<<<<<<< HEAD
-import com.petconect.backend.model.Lojista;
-import com.petconect.backend.repository.LojistaRepository;
-=======
 import com.petconect.backend.model.Admin;
 import com.petconect.backend.model.Lojista;
 import com.petconect.backend.model.Tutor;
@@ -13,7 +9,6 @@ import com.petconect.backend.repository.AdminRepository;
 import com.petconect.backend.repository.LojistaRepository;
 import com.petconect.backend.repository.TutorRepository;
 import com.petconect.backend.repository.VeterinarioRepository;
->>>>>>> dev
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,15 +20,6 @@ import java.util.Optional;
 @RequestMapping("/api/auth")
 public class AuthController {
     @Autowired
-<<<<<<< HEAD
-    private LojistaRepository lojistaRepository;
-
-    @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest loginRequest) {
-        Optional<Lojista> lojistaOpt = lojistaRepository.findByEmail(loginRequest.getEmail());
-        if (lojistaOpt.isPresent() && lojistaOpt.get().getPassword().equals(loginRequest.getPassword())) {
-            return ResponseEntity.ok(lojistaOpt.get());
-=======
     private AdminRepository adminRepository;
     @Autowired
     private LojistaRepository lojistaRepository;
@@ -53,7 +39,6 @@ public class AuthController {
 
         if (user.isPresent() && user.get().getPassword().equals(loginRequest.getPassword())) {
             return ResponseEntity.ok(user.get());
->>>>>>> dev
         }
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Email ou senha incorretos");
     }

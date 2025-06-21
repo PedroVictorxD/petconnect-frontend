@@ -20,13 +20,7 @@ public class Pet {
     private String activityLevel;
     private String breed;
     private String notes;
-<<<<<<< HEAD
-    private Long ownerId;
-=======
-    @ManyToOne
-    @JoinColumn(name = "tutor_id")
-    private Tutor tutor;
->>>>>>> dev
+    private Long tutorId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 } 
