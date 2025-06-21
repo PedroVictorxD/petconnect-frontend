@@ -6,28 +6,20 @@ part 'pet.g.dart';
 class Pet {
   final int? id;
   final String name;
-  final String type;
-  final double weight;
+  final String species; // 'Cachorro' ou 'Gato'
+  final String? breed; // Raça
   final int age;
-  final String activityLevel;
-  final String? breed;
-  final String? notes;
-  final int? tutorId;
-  final String? createdAt;
-  final String? updatedAt;
+  final double weight;
+  final int tutorId;
 
   Pet({
     this.id,
     required this.name,
-    required this.type,
-    required this.weight,
-    required this.age,
-    required this.activityLevel,
+    required this.species,
     this.breed,
-    this.notes,
-    this.tutorId,
-    this.createdAt,
-    this.updatedAt,
+    required this.age,
+    required this.weight,
+    required this.tutorId,
   });
 
   factory Pet.fromJson(Map<String, dynamic> json) => _$PetFromJson(json);

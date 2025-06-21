@@ -36,6 +36,21 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
   String _selectedSection = 'pets';
   bool _isCalculatorExpanded = false;
 
+  // Formulário de Pet
+  final _petFormKey = GlobalKey<FormState>();
+  final _petNameController = TextEditingController();
+  final _petBreedController = TextEditingController(); // Raça
+  final _petAgeController = TextEditingController();
+  final _petWeightController = TextEditingController();
+  String _petSpecies = 'Cachorro'; // Espécie
+
+  // Calculadora
+  final _weightControllerCalc = TextEditingController();
+  final _activityLevelControllerCalc = ValueNotifier<String>('Moderado');
+  final _lifeStageControllerCalc = ValueNotifier<String>('Adulto');
+  String _foodRecommendation = '';
+  String _petTypeForCalc = 'Cachorro';
+
   @override
   void initState() {
     super.initState();
@@ -69,90 +84,60 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
     _notesController.dispose();
     _calculatorWeightController.dispose();
     _animationController.dispose();
+    _petNameController.dispose();
+    _petBreedController.dispose();
+    _petAgeController.dispose();
+    _petWeightController.dispose();
+    _weightControllerCalc.dispose();
+    _activityLevelControllerCalc.dispose();
+    _lifeStageControllerCalc.dispose();
     super.dispose();
   }
 
   void _showAddPetDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Adicionar Novo Pet'),
-        content: SizedBox(
-          width: 500,
-          child: Form(
-            key: _formKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(controller: _nameController, decoration: const InputDecoration(labelText: 'Nome'), validator: (v) => v!.isEmpty ? 'Obrigatório' : null),
-                  TextFormField(controller: _typeController, decoration: const InputDecoration(labelText: 'Tipo (Cachorro, Gato...)'), validator: (v) => v!.isEmpty ? 'Obrigatório' : null),
-                  TextFormField(controller: _weightController, decoration: const InputDecoration(labelText: 'Peso (kg)'), keyboardType: TextInputType.number, validator: (v) => v!.isEmpty ? 'Obrigatório' : null),
-                  TextFormField(controller: _ageController, decoration: const InputDecoration(labelText: 'Idade'), keyboardType: TextInputType.number, validator: (v) => v!.isEmpty ? 'Obrigatório' : null),
-                  TextFormField(controller: _breedController, decoration: const InputDecoration(labelText: 'Raça')),
-                  DropdownButtonFormField<String>(
-                    value: _activityLevel,
-                    decoration: const InputDecoration(labelText: 'Nível de Atividade'),
-                    items: ['Baixo', 'Médio', 'Alto'].map((l) => DropdownMenuItem(value: l, child: Text(l))).toList(),
-                    onChanged: (v) => setState(() => _activityLevel = v!),
-                  ),
-                  TextFormField(controller: _notesController, decoration: const InputDecoration(labelText: 'Observações'), maxLines: 3),
-                ],
-              ),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-          ElevatedButton(onPressed: _addPet, child: const Text('Adicionar')),
-        ],
-      ),
+    _clearPetForm();
+    _showPetFormDialog(
+      title: 'Adicionar Novo Pet',
+      onSave: _addPet,
     );
   }
 
   Future<void> _addPet() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_petFormKey.currentState!.validate()) return;
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final dataProvider = Provider.of<DataProvider>(context, listen: false);
 
     final pet = Pet(
-      name: _nameController.text,
-      type: _typeController.text,
-      weight: double.parse(_weightController.text),
-      age: int.parse(_ageController.text),
-      activityLevel: _activityLevel,
-      breed: _breedController.text,
-      notes: _notesController.text,
-      tutorId: authProvider.currentUser?.id,
+      name: _petNameController.text,
+      species: _petSpecies,
+      breed: _petBreedController.text,
+      age: int.tryParse(_petAgeController.text) ?? 0,
+      weight: double.tryParse(_petWeightController.text.replaceAll(',', '.')) ?? 0.0,
+      tutorId: authProvider.currentUser!.id!,
     );
 
     final success = await dataProvider.createPet(pet);
     
-    if (success) {
+    if (mounted) {
       Navigator.pop(context);
-      _clearForm();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pet adicionado com sucesso!')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(dataProvider.error ?? 'Erro ao adicionar pet'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Pet adicionado com sucesso!'), backgroundColor: Colors.green));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(dataProvider.error ?? 'Erro ao adicionar pet'), backgroundColor: Colors.red));
+      }
     }
   }
 
-  void _clearForm() {
-    _nameController.clear();
-    _typeController.clear();
-    _weightController.clear();
-    _ageController.clear();
-    _breedController.clear();
-    _notesController.clear();
-    setState(() => _activityLevel = 'Médio');
+  void _clearPetForm() {
+    _petFormKey.currentState?.reset();
+    _petNameController.clear();
+    _petBreedController.clear();
+    _petAgeController.clear();
+    _petWeightController.clear();
+    setState(() {
+      _petSpecies = 'Cachorro';
+    });
   }
 
   void _calculateFood() {
@@ -449,7 +434,7 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
         title: Text(pet.name, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text('${pet.breed ?? 'Sem raça'} • ${pet.age} anos • ${pet.weight} kg'),
         trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
-        onTap: () => _showPetDetailsDialog(pet),
+        onTap: () => _showPetDetails(pet),
       ),
     );
   }
@@ -466,7 +451,7 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
         title: Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text('R\$ ${product.price.toStringAsFixed(2)}'),
         trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
-        onTap: () => _showProductDetailsDialog(product),
+        onTap: () => _showProductDetails(product),
       ),
     );
   }
@@ -483,36 +468,35 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
         title: Text(service.name, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text('R\$ ${service.price.toStringAsFixed(2)}'),
         trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
-        onTap: () => _showVetServiceDetailsDialog(service),
+        onTap: () => _showVetServiceDetails(service),
       ),
     );
   }
 
-  void _showPetDetailsDialog(Pet pet) {
+  void _showPetDetails(Pet pet) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        title: Text(pet.name, style: const TextStyle(fontWeight: FontWeight.bold)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(children: [const Icon(Icons.pets, color: Color(0xFF667eea)), const SizedBox(width: 8), Text(pet.name)]),
         content: SingleChildScrollView(
           child: ListBody(
             children: <Widget>[
-              _buildDetailRow(Icons.category, 'Tipo', pet.type),
+              _buildDetailRow(Icons.category, 'Espécie', pet.species),
               _buildDetailRow(Icons.monitor_weight, 'Peso', '${pet.weight} kg'),
               _buildDetailRow(Icons.cake, 'Idade', '${pet.age} anos'),
               _buildDetailRow(Icons.pets, 'Raça', pet.breed ?? 'Não informada'),
-              _buildDetailRow(Icons.directions_run, 'Nível de Atividade', pet.activityLevel),
-              if (pet.notes != null && pet.notes!.isNotEmpty)
-                _buildDetailRow(Icons.notes, 'Observações', pet.notes!),
             ],
           ),
         ),
-        actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Fechar'))],
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Fechar')),
+        ],
       ),
     );
   }
 
-  void _showProductDetailsDialog(Product product) {
+  void _showProductDetails(Product product) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -535,7 +519,7 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
     );
   }
 
-  void _showVetServiceDetailsDialog(VetService service) {
+  void _showVetServiceDetails(VetService service) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -558,7 +542,7 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
     );
   }
 
-  Widget _buildDetailRow(IconData icon, String title, String value) {
+  Widget _buildDetailRow(IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Row(
@@ -570,7 +554,7 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 2),
                 Text(value, style: TextStyle(color: Colors.grey.shade800)),
               ],
@@ -578,6 +562,47 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildPetFormDialog({required String title, required VoidCallback onSave, required String petSpecies, required ValueChanged<String?> onSpeciesChanged}) {
+    return AlertDialog(
+      title: Text(title),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      content: StatefulBuilder(
+        builder: (BuildContext context, StateSetter setState) {
+          return Form(
+            key: _petFormKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(controller: _petNameController, decoration: const InputDecoration(labelText: 'Nome do Pet'), validator: (v) => v!.isEmpty ? 'Obrigatório' : null),
+                  DropdownButtonFormField<String>(
+                    value: petSpecies,
+                    decoration: const InputDecoration(labelText: 'Espécie'),
+                    items: ['Cachorro', 'Gato'].map((String value) {
+                      return DropdownMenuItem<String>(value: value, child: Text(value));
+                    }).toList(),
+                    onChanged: (newValue) {
+                      setState(() {
+                        onSpeciesChanged(newValue);
+                      });
+                    },
+                  ),
+                  TextFormField(controller: _petBreedController, decoration: const InputDecoration(labelText: 'Raça')),
+                  TextFormField(controller: _petAgeController, decoration: const InputDecoration(labelText: 'Idade (anos)'), keyboardType: TextInputType.number),
+                  TextFormField(controller: _petWeightController, decoration: const InputDecoration(labelText: 'Peso (kg)'), keyboardType: TextInputType.number, validator: (v) => v!.isEmpty ? 'Obrigatório' : null),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+        ElevatedButton(onPressed: onSave, child: const Text('Salvar')),
+      ],
     );
   }
 } 
