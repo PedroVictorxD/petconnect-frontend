@@ -17,6 +17,7 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
   final _descriptionController = TextEditingController();
   final _priceController = TextEditingController();
   final _measurementUnitController = TextEditingController();
+  final _imageUrlController = TextEditingController();
 
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -45,6 +46,7 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
     _descriptionController.dispose();
     _priceController.dispose();
     _measurementUnitController.dispose();
+    _imageUrlController.dispose();
     _animationController.dispose();
     super.dispose();
   }
@@ -55,6 +57,7 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
     _descriptionController.clear();
     _priceController.clear();
     _measurementUnitController.clear();
+    _imageUrlController.clear();
   }
 
   void _showAddProductDialog() {
@@ -79,6 +82,7 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
       description: _descriptionController.text,
       price: double.parse(_priceController.text.replaceAll(',', '.')),
       measurementUnit: _measurementUnitController.text,
+      imageUrl: _imageUrlController.text,
       ownerId: authProvider.currentUser?.id,
       ownerName: authProvider.currentUser?.name,
       ownerLocation: authProvider.currentUser?.location,
@@ -103,6 +107,7 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
     _descriptionController.text = product.description ?? '';
     _priceController.text = product.price.toString().replaceAll('.', ',');
     _measurementUnitController.text = product.measurementUnit ?? '';
+    _imageUrlController.text = product.imageUrl ?? '';
 
     showDialog(
       context: context,
@@ -125,6 +130,7 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
       description: _descriptionController.text,
       price: double.parse(_priceController.text.replaceAll(',', '.')),
       measurementUnit: _measurementUnitController.text,
+      imageUrl: _imageUrlController.text,
       ownerId: authProvider.currentUser?.id,
       ownerName: authProvider.currentUser?.name,
       ownerLocation: authProvider.currentUser?.location,
@@ -196,6 +202,11 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
                 TextFormField(controller: _descriptionController, decoration: const InputDecoration(labelText: 'Descrição'), maxLines: 2),
                 TextFormField(controller: _priceController, decoration: const InputDecoration(labelText: 'Preço (R\$)', prefixIcon: Icon(Icons.attach_money)), keyboardType: TextInputType.number, validator: (v) => v!.isEmpty ? 'Obrigatório' : null),
                 TextFormField(controller: _measurementUnitController, decoration: const InputDecoration(labelText: 'Unidade de Medida (kg, un, etc.)')),
+                TextFormField(
+                  controller: _imageUrlController,
+                  decoration: const InputDecoration(labelText: 'URL da Imagem do Produto'),
+                  keyboardType: TextInputType.url,
+                ),
               ],
             ),
           ),
@@ -333,45 +344,56 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
 
   Widget _buildProductCard(Product product) {
     return Card(
-      elevation: 2,
-      shadowColor: Colors.black12,
-      margin: const EdgeInsets.all(0),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Row(
-          children: [
-            CircleAvatar(backgroundColor: const Color(0xFF764ba2).withOpacity(0.1), child: const Icon(Icons.shopping_bag, color: Color(0xFF764ba2))),
-            const SizedBox(width: 12),
-            Expanded(
+      elevation: 4,
+      shadowColor: Colors.grey.withOpacity(0.2),
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 120,
+            height: 120,
+            child: ClipRRect(
+              borderRadius: const BorderRadius.horizontal(left: Radius.circular(15)),
+              child: (product.imageUrl != null && product.imageUrl!.isNotEmpty)
+                ? Image.network(
+                    product.imageUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => _buildProductPlaceholderIcon(),
+                  )
+                : _buildProductPlaceholderIcon(),
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                   const SizedBox(height: 4),
-                  Text(product.description ?? 'Sem descrição', style: TextStyle(color: Colors.grey[600], fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
-                  const Spacer(),
-                  Text('R\$ ${product.price.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 15)),
+                  Text(product.description ?? '', maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.grey.shade600)),
+                  const SizedBox(height: 8),
+                  Text('R\$ ${product.price.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.green)),
                 ],
               ),
             ),
-            PopupMenuButton<String>(
-              onSelected: (value) {
-                if (value == 'edit') {
-                  _showEditProductDialog(product);
-                } else if (value == 'delete') {
-                  _handleDeleteProduct(product.id!);
-                }
-              },
-              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                const PopupMenuItem<String>(value: 'edit', child: ListTile(leading: Icon(Icons.edit), title: Text('Editar'))),
-                const PopupMenuItem<String>(value: 'delete', child: ListTile(leading: Icon(Icons.delete), title: Text('Excluir'))),
-              ],
-            ),
-          ],
-        ),
+          ),
+          Column(
+            children: [
+              IconButton(icon: const Icon(Icons.edit, color: Colors.blueGrey), onPressed: () => _showEditProductDialog(product)),
+              IconButton(icon: const Icon(Icons.delete, color: Colors.redAccent), onPressed: () => _handleDeleteProduct(product.id!)),
+            ],
+          )
+        ],
       ),
+    );
+  }
+
+  Widget _buildProductPlaceholderIcon() {
+    return Container(
+      color: Colors.grey.shade200,
+      child: Icon(Icons.shopping_bag_outlined, size: 50, color: Colors.grey.shade400),
     );
   }
 } 

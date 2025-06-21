@@ -261,8 +261,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> with TickerProviderSt
       pets.map((pet) => DataRow(cells: [
         DataCell(Text(pet.id.toString())),
         DataCell(Text(pet.name)),
-        DataCell(Text(pet.species)),
-        DataCell(Text(pet.breed ?? 'N/A')),
+        DataCell(Text(pet.type)),
+        DataCell(Text(pet.breed ?? '-')),
         DataCell(Text(pet.age.toString())),
       ])).toList(),
       emptyMessage: "Nenhum pet encontrado."

@@ -7,7 +7,7 @@ class Pet {
   final String activityLevel;
   final String breed;
   final String notes;
-  final int? tutorId;
+  final Map<String, dynamic>? tutor;
 
   Pet({
     this.id,
@@ -18,7 +18,7 @@ class Pet {
     required this.activityLevel,
     required this.breed,
     required this.notes,
-    this.tutorId,
+    this.tutor,
   });
 
   factory Pet.fromJson(Map<String, dynamic> json) => Pet(
@@ -30,7 +30,7 @@ class Pet {
     activityLevel: json['activityLevel'] ?? '',
     breed: json['breed'] ?? '',
     notes: json['notes'] ?? '',
-    tutorId: json['tutorId'],
+    tutor: json['tutor'],
   );
 
   Map<String, dynamic> toJson() => {
@@ -42,6 +42,6 @@ class Pet {
     'activityLevel': activityLevel,
     'breed': breed,
     'notes': notes,
-    'tutorId': tutorId,
+    'tutor': tutor,
   };
 } 

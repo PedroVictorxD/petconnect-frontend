@@ -39,7 +39,7 @@ class ApiService {
   static Future<User?> createTutor(User user) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/tutores'),
+        Uri.parse('$baseUrl/api/tutores'),
         headers: _headers,
         body: jsonEncode(user.toJson()),
       );
@@ -57,7 +57,7 @@ class ApiService {
   static Future<User?> createVeterinario(User user) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/veterinarios'),
+        Uri.parse('$baseUrl/api/veterinarios'),
         headers: _headers,
         body: jsonEncode(user.toJson()),
       );
@@ -75,7 +75,7 @@ class ApiService {
   static Future<User?> createLojista(User user) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/lojistas'),
+        Uri.parse('$baseUrl/api/lojistas'),
         headers: _headers,
         body: jsonEncode(user.toJson()),
       );
@@ -112,9 +112,9 @@ class ApiService {
     try {
       final responses = await Future.wait([
         http.get(Uri.parse('$baseUrl/admins'), headers: _headers),
-        http.get(Uri.parse('$baseUrl/tutores'), headers: _headers),
-        http.get(Uri.parse('$baseUrl/lojistas'), headers: _headers),
-        http.get(Uri.parse('$baseUrl/veterinarios'), headers: _headers),
+        http.get(Uri.parse('$baseUrl/api/tutores'), headers: _headers),
+        http.get(Uri.parse('$baseUrl/api/lojistas'), headers: _headers),
+        http.get(Uri.parse('$baseUrl/api/veterinarios'), headers: _headers),
       ]);
 
       List<User> allUsers = [];
