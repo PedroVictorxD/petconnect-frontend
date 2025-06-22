@@ -60,6 +60,54 @@ class DataProvider extends ChangeNotifier {
     }
   }
 
+  // Carregar pets de um tutor específico
+  Future<void> fetchPetsForTutor(int tutorId) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      _pets = await ApiService.getPets(tutorId: tutorId);
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = 'Erro ao carregar pets do tutor: $e';
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // Carregar produtos
+  Future<void> fetchProducts() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      _products = await ApiService.getProducts();
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = 'Erro ao carregar produtos: $e';
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // Carregar serviços
+  Future<void> fetchServices() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      _vetServices = await ApiService.getVetServices();
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = 'Erro ao carregar serviços: $e';
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   // Criar pet
   Future<bool> createPet(Pet pet) async {
     _isLoading = true;

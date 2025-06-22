@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
-import '../../models/user.dart';
-import '../../models/pet.dart';
+import 'package:carousel_slider/carousel_slider.dart';
 import 'package:provider/provider.dart';
+import 'dart:math';
+import 'dart:ui';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/rendering.dart';
+
+import '../../models/pet.dart';
+import '../../models/product.dart';
+import '../../models/user.dart';
+import '../../models/vet_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_provider.dart';
-import '../../models/product.dart';
-import '../../models/vet_service.dart';
-import 'dart:math';
+
+// --- WIDGET PRINCIPAL ---
 
 class TutorHomeScreen extends StatefulWidget {
   const TutorHomeScreen({super.key});
@@ -16,6 +23,8 @@ class TutorHomeScreen extends StatefulWidget {
 }
 
 class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderStateMixin {
+  // --- VARIÁVEIS DE ESTADO ---
+
   // Formulário de Pet
   final _petFormKey = GlobalKey<FormState>();
   final _petNameController = TextEditingController();
@@ -32,729 +41,505 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
   String _calculatorLifeStage = 'Adulto';
   String _calculatorActivityLevel = 'Médio';
   double? _dailyFoodAmount;
-  Pet? _selectedPet; // Pet selecionado para cálculo
-  bool _useSelectedPet = false; // Se deve usar pet selecionado ou dados manuais
+  Pet? _selectedPetForCalc;
+  bool _useSelectedPetData = false;
 
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
+  // UI
   String _selectedSection = 'pets';
-  bool _isCalculatorExpanded = false;
+  List<Offset> _pawPrints = [];
+
+  // Animação do Fundo
+  AnimationController? _pawAnimationController;
+  final List<_Paw> _paws = [];
+  final Random _random = Random();
+
+  // --- CICLO DE VIDA ---
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(duration: const Duration(milliseconds: 800), vsync: this);
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _animationController, curve: Curves.easeInOut));
-    _animationController.forward();
+    _pawAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1), // A duração não importa pois a animação se repete
+    )..addListener(_updatePawAnimation);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final dataProvider = Provider.of<DataProvider>(context, listen: false);
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      dataProvider.loadPets(tutorId: authProvider.currentUser?.id);
-      dataProvider.loadProducts();
-      dataProvider.loadVetServices();
+      _initializePaws();
+      _pawAnimationController?.repeat();
+      _refreshData();
     });
   }
 
   @override
   void dispose() {
+    _pawAnimationController?.dispose();
+    // Limpeza dos controllers
     _petNameController.dispose();
     _petBreedController.dispose();
     _petAgeController.dispose();
     _petWeightController.dispose();
     _petPhotoUrlController.dispose();
     _calculatorWeightController.dispose();
-    _animationController.dispose();
     super.dispose();
   }
 
-  void _clearPetForm() {
-    _petFormKey.currentState?.reset();
-    _petNameController.clear();
-    _petBreedController.clear();
-    _petAgeController.clear();
-    _petWeightController.clear();
-    _petPhotoUrlController.clear();
-    setState(() { 
-      _petType = 'Cachorro'; 
-      _petActivityLevel = 'Médio';
-    });
-  }
+  // --- MÉTODOS DE DADOS ---
 
-  // --- ADD PET ---
-  void _showAddPetDialog() {
-    _clearPetForm();
-    showDialog(
-      context: context,
-      builder: (context) => _buildPetFormDialog(
-        title: 'Adicionar Novo Pet',
-        onSave: _addPet,
-      ),
-    );
-  }
-
-  Future<void> _addPet() async {
-    if (!_petFormKey.currentState!.validate()) return;
-
+  Future<void> _refreshData() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final dataProvider = Provider.of<DataProvider>(context, listen: false);
-
-    // 1. Pega o usuário logado
-    final User tutor = authProvider.currentUser!;
-
-    final pet = Pet(
-      name: _petNameController.text,
-      type: _petType,
-      breed: _petBreedController.text,
-      age: int.tryParse(_petAgeController.text) ?? 0,
-      weight: double.tryParse(_petWeightController.text.replaceAll(',', '.')) ?? 0.0,
-      activityLevel: _petActivityLevel,
-      photoUrl: _petPhotoUrlController.text,
-      // 3. Associa o tutor como um Map com o id
-      tutor: {
-        'id': tutor.id,
-        'name': tutor.name,
-        'email': tutor.email,
-      },
-    );
-
-    final success = await dataProvider.createPet(pet);
-
-    if (mounted) {
-      Navigator.pop(context);
-      _showFeedback('Pet adicionado com sucesso!', success, dataProvider.error);
+    final user = authProvider.currentUser;
+    if (user != null && user.id != null) {
+      await dataProvider.fetchPetsForTutor(user.id!);
+      await dataProvider.fetchProducts();
+      await dataProvider.fetchServices();
     }
   }
 
-  // --- EDIT PET ---
-  void _showEditPetDialog(Pet pet) {
-    _clearPetForm();
-    _petNameController.text = pet.name;
-    _petBreedController.text = pet.breed ?? '';
-    _petAgeController.text = pet.age.toString();
-    _petWeightController.text = pet.weight.toString().replaceAll('.', ',');
-    _petPhotoUrlController.text = pet.photoUrl ?? '';
-    _petType = pet.type;
-    _petActivityLevel = pet.activityLevel ?? 'Médio';
-    showDialog(
-      context: context,
-      builder: (context) => _buildPetFormDialog(
-        title: 'Editar Pet',
-        onSave: () => _updatePet(pet),
-      ),
-    );
-  }
+  void _savePet(Pet? existingPet) async {
+    if (_petFormKey.currentState!.validate()) {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final user = authProvider.currentUser;
+      if (user != null && user.id != null) {
+        
+        final petData = Pet(
+          id: existingPet?.id,
+          name: _petNameController.text,
+          breed: _petBreedController.text,
+          age: int.parse(_petAgeController.text),
+          weight: double.parse(_petWeightController.text),
+          type: _petType,
+          activityLevel: _petActivityLevel,
+          photoUrl: _petPhotoUrlController.text,
+          tutor: {
+            'id': user.id!,
+            'name': user.name,
+            'email': user.email,
+            'phone': user.phone,
+            'location': user.location,
+            'dtype': user.dtype,
+          },
+        );
 
-  Future<void> _updatePet(Pet oldPet) async {
-    if (!_petFormKey.currentState!.validate()) return;
-    final dataProvider = Provider.of<DataProvider>(context, listen: false);
-    final updatedPet = Pet(
-      id: oldPet.id,
-      name: _petNameController.text,
-      type: _petType,
-      breed: _petBreedController.text,
-      age: int.tryParse(_petAgeController.text) ?? 0,
-      weight: double.tryParse(_petWeightController.text.replaceAll('.', ',')) ?? 0.0,
-      activityLevel: _petActivityLevel,
-      photoUrl: _petPhotoUrlController.text,
-      tutor: oldPet.tutor,
-    );
-    final success = await dataProvider.updatePet(updatedPet.id!, updatedPet);
-    if (mounted) {
-      Navigator.pop(context);
-      _showFeedback('Pet atualizado com sucesso!', success, dataProvider.error);
+        if (existingPet == null) {
+          await Provider.of<DataProvider>(context, listen: false).createPet(petData);
+        } else if (petData.id != null) {
+          await Provider.of<DataProvider>(context, listen: false).updatePet(petData.id!, petData);
+        }
+
+        Navigator.of(context).pop();
+        _refreshData();
+      }
     }
   }
 
-  // --- DELETE PET ---
-  void _handleDeletePet(int petId) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirmar Exclusão'),
-        content: const Text('Tem certeza de que deseja remover este pet?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              final dataProvider = Provider.of<DataProvider>(context, listen: false);
-              final success = await dataProvider.deletePet(petId);
-              if (mounted) _showFeedback('Pet removido com sucesso!', success, dataProvider.error);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Excluir'),
-          ),
-        ],
-      ),
-    );
+  void _deletePet(int petId) async {
+    await Provider.of<DataProvider>(context, listen: false).deletePet(petId);
+    _refreshData();
+    Navigator.of(context).pop(); // Fecha o dialog de confirmação ou o de edição
   }
 
-  void _showFeedback(String message, bool success, String? error) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(success ? message : error ?? 'Ocorreu um erro.'),
-      backgroundColor: success ? Colors.green : Colors.red,
-    ));
-  }
-
-  // Método para selecionar um pet para cálculo
-  void _selectPetForCalculation(Pet pet) {
+  // --- MÉTODOS DE ANIMAÇÃO DE FUNDO ---
+  void _initializePaws() {
+    if (!mounted) return;
+    final size = MediaQuery.of(context).size;
     setState(() {
-      _selectedPet = pet;
-      _useSelectedPet = true;
-      _calculatorPetType = pet.type;
-      _calculatorWeightController.text = pet.weight.toString();
-      _calculatorActivityLevel = pet.activityLevel ?? 'Médio';
-      
-      // Determinar fase da vida baseada na idade
-      if (pet.age < 1) {
-        _calculatorLifeStage = 'Filhote';
-      } else if (pet.age > 7) {
-        _calculatorLifeStage = 'Idoso';
-      } else {
-        _calculatorLifeStage = 'Adulto';
+      for (int i = 0; i < 40; i++) {
+        _paws.add(_Paw(
+          position: Offset(
+            _random.nextDouble() * size.width,
+            _random.nextDouble() * size.height,
+          ),
+          scale: _random.nextDouble() * 0.4 + 0.6, // Escala entre 0.6 e 1.0
+          opacity: _random.nextDouble() * 0.04 + 0.02, // Opacidade entre 0.02 e 0.06
+          speed: _random.nextDouble() * 15 + 10, // Velocidade entre 10 e 25
+        ));
       }
     });
-    
-    // Calcular automaticamente quando um pet é selecionado
-    _calculateFood();
   }
 
-  void _calculateFood() {
-    double weight;
-    String petType;
-    String lifeStage;
-    String activityLevel;
+  void _updatePawAnimation() {
+    if (!mounted) return;
+    final size = MediaQuery.of(context).size;
+    const double frameTime = 1 / 60; 
 
-    if (_useSelectedPet && _selectedPet != null) {
-      // Usar dados do pet selecionado
-      weight = _selectedPet!.weight;
-      petType = _selectedPet!.type;
-      activityLevel = _selectedPet!.activityLevel ?? 'Médio';
-      
-      // Determinar fase da vida baseada na idade
-      if (_selectedPet!.age < 1) {
-        lifeStage = 'Filhote';
-      } else if (_selectedPet!.age > 7) {
-        lifeStage = 'Idoso';
-      } else {
-        lifeStage = 'Adulto';
+    setState(() {
+      for (var paw in _paws) {
+        paw.position = paw.position.translate(0, -paw.speed * frameTime);
+        if (paw.position.dy < -50) {
+          paw.position = Offset(_random.nextDouble() * size.width, size.height + 50);
+        }
       }
-    } else {
-      // Usar dados manuais
-      weight = double.tryParse(_calculatorWeightController.text) ?? 0;
-      if (weight <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Por favor, insira um peso válido.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
-      petType = _calculatorPetType;
-      lifeStage = _calculatorLifeStage;
-      activityLevel = _calculatorActivityLevel;
-    }
-
-    // Fórmulas de Necessidade Energética de Repouso (NER) variam por espécie
-    // Cães: NER = 70 * (peso^0.75)
-    // Gatos: NER = 70 * (peso^0.67)
-    final exponent = petType == 'Cachorro' ? 0.75 : 0.67;
-    final rer = 70 * pow(weight, exponent);
-
-    // Fatores de Necessidade Energética Diária (NED)
-    double multiplier = 1.0; 
-
-    if (petType == 'Cachorro') {
-      switch (lifeStage) {
-        case 'Filhote':
-          multiplier = 3.0; // Varia muito com a idade, 3.0 é uma média inicial
-          break;
-        case 'Adulto':
-          switch (activityLevel) {
-            case 'Baixo': multiplier = 1.4; break;
-            case 'Médio': multiplier = 1.6; break;
-            case 'Alto': multiplier = 1.8; break;
-          }
-          break;
-        case 'Idoso':
-          multiplier = 1.2;
-          break;
-      }
-    } else { // Gato
-      switch (lifeStage) {
-        case 'Filhote':
-          multiplier = 2.5;
-          break;
-        case 'Adulto':
-           switch (activityLevel) {
-            case 'Baixo': multiplier = 1.2; break; // Gato castrado/interno
-            case 'Médio': multiplier = 1.4; break; // Ativo
-            case 'Alto': multiplier = 1.6; break; // Muito ativo
-          }
-          break;
-        case 'Idoso':
-          multiplier = 1.1;
-          break;
-      }
-    }
-    
-    final der = rer * multiplier;
-    final foodAmount = der / 3.5; // Assumindo 3.5 kcal/g para ração seca
-
-    setState(() => _dailyFoodAmount = foodAmount);
+    });
   }
+
+  // --- CONSTRUÇÃO DA UI ---
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final user = authProvider.currentUser;
+
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text('Painel do Tutor', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.black87,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout_rounded),
-            onPressed: () {
-              Provider.of<AuthProvider>(context, listen: false).logout();
-              Navigator.of(context).pushReplacementNamed('/login');
-            },
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(0), // AppBar invisível
+        child: AppBar(elevation: 0, backgroundColor: Colors.transparent),
+      ),
+      extendBody: true,
+      body: Stack(
+        children: [
+          // Fundo com gradiente
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF667eea), Color(0xFF764ba2), Color(0xFFf093fb)],
+                stops: [0.0, 0.6, 1.0],
+              ),
+            ),
           ),
+          _buildPawPrintBackground(),
+
+          // Conteúdo principal
+          SafeArea(
+            child: RefreshIndicator(
+              onRefresh: _refreshData,
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                children: [
+                  _buildHeader(user),
+                  const SizedBox(height: 24),
+                  _buildSectionSelector(),
+                  const SizedBox(height: 24),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 400),
+                    transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: child),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) => _buildCurrentSection(constraints: constraints)
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          // Botões flutuantes
+          _buildFloatingActionButtons(),
         ],
       ),
-      body: Consumer2<AuthProvider, DataProvider>(
-        builder: (context, authProvider, dataProvider, child) {
-          if (dataProvider.isLoading && dataProvider.pets.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          return FadeTransition(
-            opacity: _fadeAnimation,
-            child: Column(
-              children: [
-                _buildHeader(authProvider),
-                const SizedBox(height: 24),
-                _buildFoodCalculator(dataProvider),
-                const SizedBox(height: 8),
-                _buildSectionToggle(dataProvider),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: _buildContent(dataProvider),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-      floatingActionButton: _selectedSection == 'pets'
-          ? FloatingActionButton.extended(
-              onPressed: _showAddPetDialog,
-              label: const Text('Adicionar Pet'),
-              icon: const Icon(Icons.add),
-              backgroundColor: const Color(0xFF667eea),
-            )
-          : null,
     );
   }
 
-  Widget _buildHeader(AuthProvider authProvider) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFF667eea), Color(0xFF764ba2)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: const Color(0xFF667eea).withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))],
-      ),
-      child: Row(
-        children: [
-          const CircleAvatar(radius: 28, backgroundColor: Colors.white, child: Icon(Icons.person_outline_rounded, color: Color(0xFF667eea), size: 30)),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
+  Widget _buildHeader(User? user) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Olá, ${authProvider.currentUser?.name ?? 'Tutor'}!', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
-                const SizedBox(height: 2),
-                Text(authProvider.currentUser?.email ?? '', style: TextStyle(color: Colors.white.withOpacity(0.85))),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFoodCalculator(DataProvider dataProvider) {
-    return Card(
-      elevation: _isCalculatorExpanded ? 6 : 2,
-      shadowColor: _isCalculatorExpanded ? const Color(0xFF667eea).withOpacity(0.5) : Colors.black12,
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ExpansionTile(
-        onExpansionChanged: (expanded) => setState(() => _isCalculatorExpanded = expanded),
-        leading: const Icon(Icons.calculate_outlined, color: Color(0xFF667eea)),
-        title: const Text('Calculadora de Ração', style: TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: const Text('Estime a porção diária do seu pet'),
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-            child: Column(
-              children: [
-                const SizedBox(height: 8),
-                
-                // Seção de seleção de pet
-                if (dataProvider.pets.isNotEmpty) ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.blue.withOpacity(0.3)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.pets, color: Colors.blue, size: 20),
-                            const SizedBox(width: 8),
-                            const Text('Seus Pets Cadastrados', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: dataProvider.pets.map((pet) {
-                            final isSelected = _selectedPet?.id == pet.id;
-                            return GestureDetector(
-                              onTap: () => _selectPetForCalculation(pet),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: isSelected ? const Color(0xFF667eea) : Colors.white,
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: isSelected ? const Color(0xFF667eea) : Colors.grey.shade300,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      pet.type == 'Cachorro' ? Icons.pets : Icons.cruelty_free,
-                                      size: 16,
-                                      color: isSelected ? Colors.white : Colors.grey.shade700,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      pet.name,
-                                      style: TextStyle(
-                                        color: isSelected ? Colors.white : Colors.grey.shade700,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Checkbox(
-                              value: _useSelectedPet && _selectedPet != null,
-                              onChanged: (value) {
-                                setState(() {
-                                  _useSelectedPet = value ?? false;
-                                  if (!_useSelectedPet) {
-                                    _selectedPet = null;
-                                  }
-                                });
-                              },
-                            ),
-                            const Text('Usar dados do pet selecionado'),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-
-                // Seção de dados manuais (só mostra se não usar pet selecionado)
-                if (!_useSelectedPet || _selectedPet == null) ...[
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          value: _calculatorPetType,
-                          decoration: const InputDecoration(
-                            labelText: 'Tipo de Pet',
-                            border: OutlineInputBorder(),
-                          ),
-                          items: ['Cachorro', 'Gato']
-                              .map((l) => DropdownMenuItem(value: l, child: Text(l)))
-                              .toList(),
-                          onChanged: (v) => setState(() => _calculatorPetType = v!),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _calculatorWeightController,
-                          decoration: const InputDecoration(
-                            labelText: 'Peso (kg)',
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.line_weight)
-                          ),
-                          keyboardType: TextInputType.number
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(children: [
-                    Expanded(child: DropdownButtonFormField<String>(value: _calculatorLifeStage, decoration: const InputDecoration(labelText: 'Fase da Vida', border: OutlineInputBorder()), items: ['Filhote', 'Adulto', 'Idoso'].map((l) => DropdownMenuItem(value: l, child: Text(l))).toList(), onChanged: (v) => setState(() => _calculatorLifeStage = v!))),
-                    const SizedBox(width: 12),
-                    Expanded(child: DropdownButtonFormField<String>(value: _calculatorActivityLevel, decoration: const InputDecoration(labelText: 'Nível de Atividade', border: OutlineInputBorder()), items: ['Baixo', 'Médio', 'Alto'].map((l) => DropdownMenuItem(value: l, child: Text(l))).toList(), onChanged: (v) => setState(() => _calculatorActivityLevel = v!))),
-                  ]),
-                ],
-
-                // Se usar pet selecionado, mostrar informações do pet
-                if (_useSelectedPet && _selectedPet != null) ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.green.withOpacity(0.3)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              _selectedPet!.type == 'Cachorro' ? Icons.pets : Icons.cruelty_free,
-                              color: Colors.green,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Dados do ${_selectedPet!.name}',
-                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildPetInfoCard('Peso', '${_selectedPet!.weight} kg', Icons.line_weight),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _buildPetInfoCard('Idade', '${_selectedPet!.age} anos', Icons.cake),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _buildPetInfoCard('Atividade', _selectedPet!.activityLevel ?? 'Médio', Icons.fitness_center),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-
-                const SizedBox(height: 20),
-                ElevatedButton.icon(
-                  onPressed: _calculateFood,
-                  icon: const Icon(Icons.check_circle_outline),
-                  label: const Text('Calcular'),
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF764ba2), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15), textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const Text(
+                  'Bem-vindo(a) de volta,',
+                  style: TextStyle(color: Colors.white70, fontSize: 16),
                 ),
-                if (_dailyFoodAmount != null) ...[
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-                    child: Column(
-                      children: [
-                        Text(
-                          'Recomendação diária: ${_dailyFoodAmount!.toStringAsFixed(0)} gramas',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
-                        ),
-                        if (_selectedPet != null) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            'Para ${_selectedPet!.name}',
-                            style: TextStyle(fontSize: 14, color: Colors.green.shade700),
-                          ),
-                        ],
-                      ],
+                if (user != null)
+                  Text(
+                    user.name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      shadows: [Shadow(blurRadius: 2, color: Colors.black26)],
                     ),
                   ),
-                ]
               ],
             ),
-          )
-        ],
-      ),
+            // Logo
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.pets, color: Colors.white, size: 28),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        _buildStatsRow(),
+      ],
     );
   }
 
-  Widget _buildPetInfoCard(String label, String value, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.green.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, size: 16, color: Colors.green),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.green),
-          ),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 12, color: Colors.green),
-          ),
-        ],
-      ),
+  Widget _buildStatsRow() {
+    final dataProvider = Provider.of<DataProvider>(context);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _buildStatCard('Pets', dataProvider.pets.length.toString(), Icons.pets_rounded, const Color(0xFFf7797d)),
+        _buildStatCard('Produtos', dataProvider.products.length.toString(), Icons.shopping_bag, const Color(0xFFFBD786)),
+        _buildStatCard('Serviços', dataProvider.vetServices.length.toString(), Icons.medical_services, const Color(0xFF84fab0)),
+      ],
     );
   }
 
-  Widget _buildSectionToggle(DataProvider dataProvider) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 16.0),
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(color: Colors.grey.shade200, borderRadius: BorderRadius.circular(12)),
-      child: Row(
-        children: [
-          _buildToggleButton('pets', 'Meus Pets', Icons.pets_rounded, dataProvider.pets.length),
-          _buildToggleButton('products', 'Produtos', Icons.shopping_bag_outlined, dataProvider.products.length),
-          _buildToggleButton('services', 'Serviços', Icons.medical_services_outlined, dataProvider.vetServices.length),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildToggleButton(String section, String title, IconData icon, int count) {
-    final bool isSelected = _selectedSection == section;
+  Widget _buildStatCard(String title, String count, IconData icon, Color color) {
     return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _selectedSection = section),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(color: isSelected ? const Color(0xFF667eea) : Colors.transparent, borderRadius: BorderRadius.circular(10)),
-          child: Column(
-            children: [
-              Icon(icon, color: isSelected ? Colors.white : Colors.grey.shade700, size: 28),
-              const SizedBox(height: 4),
-              Text('$title ($count)', style: TextStyle(color: isSelected ? Colors.white : Colors.grey.shade700, fontWeight: FontWeight.bold, fontSize: 12)),
-            ],
-          ),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withOpacity(0.2)),
+        ),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: color, size: 22),
+                const SizedBox(width: 8),
+                Text(title, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(count, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildContent(DataProvider dataProvider) {
+  Widget _buildSectionSelector() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: [
+        _buildSelectorButton('pets', Icons.pets_rounded, 'Meus Pets'),
+        _buildSelectorButton('products', Icons.shopping_bag, 'Produtos'),
+        _buildSelectorButton('services', Icons.medical_services, 'Serviços'),
+      ],
+    );
+  }
+
+  Widget _buildSelectorButton(String section, IconData icon, String label) {
+    final bool isSelected = _selectedSection == section;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedSection = section),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white.withOpacity(0.25) : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildFloatingActionButtons() {
+    return Positioned(
+      bottom: 24,
+      left: 24,
+      right: 24,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          FloatingActionButton.extended(
+            heroTag: 'calculator_fab',
+            onPressed: _showCalculatorDialog,
+            icon: const Icon(Icons.calculate_outlined),
+            label: const Text('Calculadora'),
+            backgroundColor: const Color(0xFF7b4cfe).withOpacity(0.9),
+            extendedPadding: const EdgeInsets.symmetric(horizontal: 20),
+          ),
+          FloatingActionButton.extended(
+            heroTag: 'add_pet_fab',
+            onPressed: () => _showPetFormDialog(),
+            icon: const Icon(Icons.add),
+            label: const Text('Adicionar Pet'),
+             backgroundColor: const Color(0xFF7b4cfe).withOpacity(0.9),
+            extendedPadding: const EdgeInsets.symmetric(horizontal: 20),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPawPrintBackground() {
+    return CustomPaint(
+      painter: _PawPrintPainter(_paws),
+      child: Container(),
+    );
+  }
+
+  Widget _buildCurrentSection({required BoxConstraints constraints}) {
+    final isDesktop = constraints.maxWidth > 1200;
+    final isTablet = constraints.maxWidth > 600 && constraints.maxWidth <= 1200;
+
     switch (_selectedSection) {
       case 'pets':
-        return _buildPetGrid(dataProvider.pets, dataProvider.isLoading);
+        return _buildPetsSection(key: const ValueKey('pets'), isTablet: isTablet, isDesktop: isDesktop);
       case 'products':
-        return _buildProductList(dataProvider.products, dataProvider.isLoading);
+        return _buildGridSection<Product>(key: const ValueKey('products'), constraints: constraints);
       case 'services':
-        return _buildVetServiceList(dataProvider.vetServices, dataProvider.isLoading);
+        return _buildGridSection<VetService>(key: const ValueKey('services'), constraints: constraints);
       default:
         return const SizedBox.shrink();
     }
   }
 
-  Widget _buildPetGrid(List<Pet> pets, bool isLoading) {
-    if (isLoading && pets.isEmpty) return const Center(child: CircularProgressIndicator());
-    if (pets.isEmpty) return const Center(child: Text('Nenhum pet cadastrado.'));
+  // --- SEÇÕES (PETS, PRODUTOS, SERVIÇOS) ---
 
-    return GridView.builder(
-      padding: const EdgeInsets.all(16.0),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 3 / 4,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
-      ),
-      itemCount: pets.length,
-      itemBuilder: (context, index) {
-        final pet = pets[index];
-        return _buildPetCard(pet);
+  Widget _buildPetsSection({Key? key, bool isTablet = false, bool isDesktop = false}) {
+    return Consumer<DataProvider>(
+      key: key,
+      builder: (context, dataProvider, child) {
+        if (dataProvider.isLoading && dataProvider.pets.isEmpty) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (dataProvider.pets.isEmpty) {
+          return _buildEmptyState(
+            'Nenhum Pet Cadastrado',
+            'Adicione seus pets para vê-los aqui!',
+            Icons.pets_rounded,
+          );
+        }
+
+        final double viewportFraction = isDesktop ? 0.3 : (isTablet ? 0.55 : 0.8);
+        final double carouselHeight = isDesktop ? 340 : 280;
+
+        return CarouselSlider.builder(
+          itemCount: dataProvider.pets.length,
+          itemBuilder: (context, index, realIndex) => _buildPetCard(dataProvider.pets[index]),
+          options: CarouselOptions(
+            height: carouselHeight,
+            autoPlay: dataProvider.pets.length > 1,
+            autoPlayInterval: const Duration(seconds: 8),
+            autoPlayAnimationDuration: const Duration(milliseconds: 1500),
+            autoPlayCurve: Curves.fastOutSlowIn,
+            enlargeCenterPage: true,
+            viewportFraction: viewportFraction,
+            aspectRatio: 16 / 9,
+          ),
+        );
       },
     );
   }
 
+  Widget _buildGridSection<T>({Key? key, required BoxConstraints constraints}) {
+    return Consumer<DataProvider>(
+      key: key,
+      builder: (context, dataProvider, child) {
+        final List<T> items = T == Product ? dataProvider.products as List<T> : dataProvider.vetServices as List<T>;
+        final String type = T == Product ? 'Produtos' : 'Serviços';
+
+        if (dataProvider.isLoading) return const Center(child: CircularProgressIndicator());
+        if (items.isEmpty) return _buildEmptyState('Nenhum(a) $type encontrado(a)', 'Volte mais tarde!', Icons.storefront);
+
+        final isDesktop = constraints.maxWidth > 1200;
+        final isTablet = constraints.maxWidth > 600 && constraints.maxWidth <= 1200;
+        final double viewportFraction = isDesktop ? 0.3 : (isTablet ? 0.5 : 0.8);
+        final double carouselHeight = isDesktop ? 340 : 260;
+
+        return CarouselSlider.builder(
+          itemCount: items.length,
+          itemBuilder: (context, index, realIndex) {
+            final item = items[index];
+            if (item is Product) return _buildProductCard(item);
+            if (item is VetService) return _buildServiceCard(item);
+            return const SizedBox.shrink();
+          },
+          options: CarouselOptions(
+            height: carouselHeight,
+            autoPlay: items.length > 1,
+            autoPlayInterval: const Duration(seconds: 8),
+            autoPlayAnimationDuration: const Duration(milliseconds: 1500),
+            autoPlayCurve: Curves.fastOutSlowIn,
+            enlargeCenterPage: true,
+            viewportFraction: viewportFraction,
+            aspectRatio: 16 / 9,
+          ),
+        );
+      },
+    );
+  }
+
+  // --- CARDS (PET, PRODUTO, SERVIÇO) ---
+
   Widget _buildPetCard(Pet pet) {
-    return Card(
-      elevation: 4,
-      shadowColor: Colors.grey.withOpacity(0.3),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      child: InkWell(
-        onTap: () => _showPetDetails(pet),
-        borderRadius: BorderRadius.circular(15),
+    return GestureDetector(
+      onTap: () => _showPetPhotoDialog(pet),
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        elevation: 5,
+        shadowColor: Colors.black.withOpacity(0.2),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
               flex: 3,
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
-                child: (pet.photoUrl != null && pet.photoUrl!.isNotEmpty)
-                  ? Image.network(
-                      pet.photoUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => _buildPetPlaceholderIcon(),
-                    )
-                  : _buildPetPlaceholderIcon(),
+              child: Container(
+                decoration: BoxDecoration(
+                  image: DecorationImage(
+                    image: NetworkImage(pet.photoUrl != null && pet.photoUrl!.isNotEmpty ? pet.photoUrl! : _getDefaultPetImage(pet.type)),
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.black.withOpacity(0.6), Colors.transparent],
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      stops: const [0.0, 0.5],
+                    ),
+                  ),
+                  alignment: Alignment.bottomLeft,
+                  padding: const EdgeInsets.all(12),
+                  child: Text(
+                    pet.name,
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 24, shadows: [
+                      Shadow(blurRadius: 2.0, color: Colors.black, offset: Offset(1.0, 1.0))
+                    ]),
+                  ),
+                ),
               ),
             ),
             Expanded(
               flex: 2,
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(pet.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                    const SizedBox(height: 4),
-                    Text(pet.breed ?? pet.type, style: TextStyle(color: Colors.grey.shade600)),
-                    const Spacer(),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit, color: Colors.blueGrey),
-                          onPressed: () => _showEditPetDialog(pet),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.redAccent),
-                          onPressed: () => _handleDeletePet(pet.id!),
-                        ),
-                      ],
-                    ),
-                  ],
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      _buildPetInfoRow(Icons.pets, '${pet.breed}, ${pet.type}'),
+                      const SizedBox(height: 8),
+                      _buildPetInfoRow(Icons.cake, '${pet.age} anos'),
+                      const SizedBox(height: 8),
+                      _buildPetInfoRow(Icons.fitness_center, '${pet.weight.toStringAsFixed(1)} kg'),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -764,165 +549,899 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
     );
   }
 
-  Widget _buildPetPlaceholderIcon() {
-    return Container(
-      color: Colors.grey.shade200,
-      child: Icon(Icons.pets_rounded, size: 60, color: Colors.grey.shade400),
-    );
-  }
-
-  Widget _buildProductList(List<Product> products, bool isLoading) {
-    if (isLoading && products.isEmpty) return const Center(child: CircularProgressIndicator());
-    if (products.isEmpty) return const Center(child: Text('Nenhum produto disponível.'));
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: products.length,
-      itemBuilder: (context, index) => _buildProductCard(products[index]),
-    );
-  }
-
-  Widget _buildVetServiceList(List<VetService> services, bool isLoading) {
-    if (isLoading && services.isEmpty) return const Center(child: CircularProgressIndicator());
-    if (services.isEmpty) return const Center(child: Text('Nenhum serviço disponível.'));
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: services.length,
-      itemBuilder: (context, index) => _buildVetServiceCard(services[index]),
-    );
-  }
-
   Widget _buildProductCard(Product product) {
-    return Card(
-      elevation: 2,
-      shadowColor: Colors.black12,
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-        leading: CircleAvatar(
-          backgroundColor: const Color(0xFF764ba2).withOpacity(0.1),
-          child: (product.imageUrl != null && product.imageUrl!.isNotEmpty)
-              ? ClipOval(child: Image.network(product.imageUrl!, fit: BoxFit.cover, width: 40, height: 40))
-              : const Icon(Icons.shopping_bag, color: Color(0xFF764ba2)),
-        ),
-        title: Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text('R\$ ${product.price.toStringAsFixed(2)}'),
-        onTap: () => _showProductDetails(product),
-      ),
-    );
-  }
-
-  Widget _buildVetServiceCard(VetService service) {
-    return Card(
-      elevation: 2,
-      shadowColor: Colors.black12,
-      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-        leading: CircleAvatar(backgroundColor: const Color(0xFF667eea).withOpacity(0.1), child: const Icon(Icons.medical_services, color: Color(0xFF667eea))),
-        title: Text(service.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text('R\$ ${service.price.toStringAsFixed(2)}'),
-        onTap: () => _showVetServiceDetails(service),
-      ),
-    );
-  }
-
-  // --- SHOW DETAILS ---
-
-  void _showPetDetails(Pet pet) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(
-            children: [
-              (pet.photoUrl != null && pet.photoUrl!.isNotEmpty)
-                ? CircleAvatar(backgroundImage: NetworkImage(pet.photoUrl!))
-                : CircleAvatar(child: Icon(pet.type == 'Cachorro' ? Icons.pets : Icons.cruelty_free)),
-              const SizedBox(width: 10),
-              Text(pet.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildDetailRow(Icons.pets, 'Espécie', pet.type),
-                if (pet.breed != null && pet.breed!.isNotEmpty)
-                  _buildDetailRow(Icons.loyalty, 'Raça', pet.breed!),
-                _buildDetailRow(Icons.cake, 'Idade', '${pet.age} anos'),
-                _buildDetailRow(Icons.monitor_weight, 'Peso', '${pet.weight} kg'),
-              ],
+    return GestureDetector(
+      onTap: () => _showProductDetailsDialog(product),
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: 3,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              flex: 3,
+              child: Image.network(
+                product.imageUrl ?? 'https://via.placeholder.com/150',
+                fit: BoxFit.cover,
+                errorBuilder: (c, e, s) => const Icon(Icons.shopping_bag_outlined, size: 50, color: Colors.grey),
+              ),
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Fechar'),
+            Expanded(
+              flex: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 2, overflow: TextOverflow.ellipsis),
+                      const SizedBox(height: 4),
+                      Text('R\$ ${product.price.toStringAsFixed(2)}', style: TextStyle(color: Theme.of(context).primaryColor, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              ),
             )
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildServiceCard(VetService service) {
+    return GestureDetector(
+      onTap: () => _showServiceDetailsDialog(service),
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: 3,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              flex: 3,
+              child: Image.network(
+                service.imageUrl ?? 'https://via.placeholder.com/150',
+                fit: BoxFit.cover,
+                errorBuilder: (c, e, s) => const Icon(Icons.medical_services_outlined, size: 50, color: Colors.grey),
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(service.name, style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 2, overflow: TextOverflow.ellipsis),
+                      const SizedBox(height: 4),
+                      Text('R\$ ${service.price.toStringAsFixed(2)}', style: TextStyle(color: Theme.of(context).primaryColor, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- WIDGETS AUXILIARES E DE UI ---
+
+  Widget _buildPetInfoRow(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: Colors.grey[600]),
+        const SizedBox(width: 8),
+        Expanded(child: Text(text, style: const TextStyle(fontSize: 14), overflow: TextOverflow.ellipsis)),
+      ],
+    );
+  }
+
+  Widget _buildEmptyState(String title, String message, IconData icon) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 60, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey)),
+            const SizedBox(height: 8),
+            Text(message, textAlign: TextAlign.center, style: TextStyle(color: Colors.grey[600])),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- MODAIS / DIÁLOGOS ---
+
+  void _showPetFormDialog({Pet? pet}) {
+    // Resetar o estado do formulário e preencher se for edição
+    _petFormKey.currentState?.reset();
+    _petNameController.text = pet?.name ?? '';
+    _petBreedController.text = pet?.breed ?? '';
+    _petAgeController.text = pet?.age?.toString() ?? '';
+    _petWeightController.text = pet?.weight?.toString() ?? '';
+    _petPhotoUrlController.text = pet?.photoUrl ?? '';
+    _petType = pet?.type ?? 'Cachorro';
+    _petActivityLevel = pet?.activityLevel ?? 'Médio';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (BuildContext context, StateSetter setModalState) {
+          return TweenAnimationBuilder<double>(
+            duration: const Duration(milliseconds: 500),
+            tween: Tween(begin: 0.0, end: 1.0),
+            builder: (context, value, child) {
+              return Opacity(
+                opacity: value,
+                child: Transform.translate(
+                  offset: Offset(0, 100 * (1 - value)),
+                  child: child,
+                ),
+              );
+            },
+            child: Container(
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 20,
+                    spreadRadius: 5,
+                  )
+                ],
+              ),
+              child: SingleChildScrollView(
+                child: _buildPetForm(pet, setModalState),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildPetForm(Pet? pet, StateSetter setModalState) {
+    return Form(
+      key: _petFormKey,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(pet == null ? Icons.add_circle_outline : Icons.edit_outlined, color: Colors.white, size: 28),
+              const SizedBox(width: 12),
+              Text(
+                pet == null ? 'Adicionar Pet' : 'Editar Pet',
+                style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          _buildCalcTextFormField(controller: _petNameController, label: 'Nome', icon: Icons.badge_outlined),
+          const SizedBox(height: 12),
+          _buildCalcTextFormField(controller: _petBreedController, label: 'Raça', icon: Icons.pets_outlined),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _buildCalcTextFormField(controller: _petAgeController, label: 'Idade', icon: Icons.cake_outlined, keyboardType: TextInputType.number)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildCalcTextFormField(controller: _petWeightController, label: 'Peso (kg)', icon: Icons.fitness_center_outlined, keyboardType: const TextInputType.numberWithOptions(decimal: true))),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildCalcTextFormField(controller: _petPhotoUrlController, label: 'URL da Foto', icon: Icons.link_outlined),
+          const SizedBox(height: 12),
+          _buildCalcDropdown(
+            label: 'Tipo',
+            value: _petType,
+            items: ['Cachorro', 'Gato'],
+            icon: Icons.pets,
+            onChanged: (val) => setModalState(() => _petType = val!),
+          ),
+          const SizedBox(height: 12),
+          _buildCalcDropdown(
+            label: 'Nível de Atividade',
+            value: _petActivityLevel,
+            items: ['Baixo', 'Médio', 'Alto'],
+            icon: Icons.directions_run,
+            onChanged: (val) => setModalState(() => _petActivityLevel = val!),
+          ),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              if (pet != null)
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    _showDeleteConfirmationDialog(context, pet.id!);
+                  },
+                  child: const Text('Excluir', style: TextStyle(color: Colors.redAccent)),
+                ),
+              const Spacer(),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancelar', style: TextStyle(color: Colors.white70)),
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton(
+                onPressed: () => _savePet(pet),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF7b4cfe),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+                child: Text(pet == null ? 'Adicionar' : 'Salvar'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteConfirmationDialog(BuildContext parentContext, int petId) {
+    showGeneralDialog(
+      context: parentContext,
+      barrierDismissible: true,
+      barrierLabel: 'Fechar',
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, anim1, anim2) => Container(),
+      transitionBuilder: (context, anim1, anim2, child) {
+        return ScaleTransition(
+          scale: anim1.drive(Tween(begin: 0.8, end: 1.0).chain(CurveTween(curve: Curves.easeOutCubic))),
+          child: FadeTransition(
+            opacity: anim1,
+            child: Dialog(
+              backgroundColor: Colors.transparent,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2c2f48).withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: Colors.redAccent.withOpacity(0.2)),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 40),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Confirmar Exclusão',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Tem certeza que deseja excluir este pet? Esta ação não pode ser desfeita.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.white70),
+                        ),
+                        const SizedBox(height: 24),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              child: const Text('Cancelar', style: TextStyle(color: Colors.white)),
+                            ),
+                            ElevatedButton(
+                              onPressed: () {
+                                Navigator.of(context).pop(); // Fecha o diálogo de confirmação
+                                _deletePet(petId);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.redAccent,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              child: const Text('Excluir'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         );
       },
     );
   }
 
-  void _showProductDetails(Product product) {
-    showDialog(
+  void _showCalculatorDialog() {
+    // Limpar estado da calculadora ao abrir
+    _calculatorWeightController.clear();
+    _dailyFoodAmount = null;
+    _selectedPetForCalc = null;
+    _useSelectedPetData = false;
+    _calculatorPetType = 'Cachorro';
+    _calculatorLifeStage = 'Adulto';
+    _calculatorActivityLevel = 'Médio';
+
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(children: [
-          CircleAvatar(
-            backgroundColor: const Color(0xFF764ba2).withOpacity(0.1),
-            child: (product.imageUrl != null && product.imageUrl!.isNotEmpty)
-                ? ClipOval(child: Image.network(product.imageUrl!, fit: BoxFit.cover, width: 40, height: 40))
-                : const Icon(Icons.shopping_bag, color: Color(0xFF764ba2)),
-          ),
-          const SizedBox(width: 10),
-          Expanded(child: Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold)))
-        ]),
-        content: SingleChildScrollView(
-          child: ListBody(
-            children: <Widget>[
-              _buildDetailRow(Icons.description, 'Descrição', product.description ?? 'Não informada'),
-              _buildDetailRow(Icons.attach_money, 'Preço', 'R\$ ${product.price.toStringAsFixed(2)}'),
-              const Divider(height: 20),
-              _buildDetailRow(Icons.store, 'Vendido por', product.ownerName ?? 'Não informado'),
-              _buildDetailRow(Icons.location_on, 'Localização', product.ownerLocation ?? 'Não informada'),
-              _buildDetailRow(Icons.phone, 'Contato', product.ownerPhone ?? 'Não informado'),
-            ],
-          ),
-        ),
-        actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Fechar'))],
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => StatefulBuilder(
+        builder: (BuildContext context, StateSetter setModalState) {
+          return TweenAnimationBuilder<double>(
+            duration: const Duration(milliseconds: 500),
+            tween: Tween(begin: 0.0, end: 1.0),
+            builder: (context, value, child) {
+              return Opacity(
+                opacity: value,
+                child: Transform.translate(
+                  offset: Offset(0, 100 * (1 - value)),
+                  child: child,
+                ),
+              );
+            },
+            child: Container(
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 20,
+                    spreadRadius: 5,
+                  )
+                ],
+              ),
+              child: SingleChildScrollView(
+                child: _buildCalculatorForm(setModalState),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
 
-  void _showVetServiceDetails(VetService service) {
-    showDialog(
+  Widget _buildCalculatorForm(StateSetter setCalcState) {
+    final pets = Provider.of<DataProvider>(context, listen: false).pets;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.calculate_rounded, color: Colors.white, size: 28),
+            SizedBox(width: 12),
+            Text(
+              'Calculadora de Ração',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        if (pets.isNotEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<Pet>(
+                hint: const Text('Ou selecione um pet salvo...', style: TextStyle(color: Colors.white70)),
+                value: _selectedPetForCalc,
+                isExpanded: true,
+                dropdownColor: const Color(0xFF764ba2),
+                icon: const Icon(Icons.pets, color: Colors.white),
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+                items: pets
+                    .map((pet) => DropdownMenuItem(
+                          value: pet,
+                          child: Text(pet.name),
+                        ))
+                    .toList(),
+                onChanged: (pet) {
+                  if (pet == null) return;
+                  setCalcState(() {
+                    _selectedPetForCalc = pet;
+                    _calculatorWeightController.text = pet.weight.toString();
+                    _calculatorPetType = pet.type;
+                    _calculatorActivityLevel = pet.activityLevel ?? 'Médio';
+                    if (pet.age < 1) {
+                      _calculatorLifeStage = 'Filhote';
+                    } else if (pet.age > 7) {
+                      _calculatorLifeStage = 'Idoso';
+                    } else {
+                      _calculatorLifeStage = 'Adulto';
+                    }
+                    _calculateFood(setCalcState);
+                  });
+                },
+              ),
+            ),
+          ),
+        const SizedBox(height: 16),
+        _buildCalcTextFormField(
+          controller: _calculatorWeightController,
+          label: 'Peso (kg)',
+          icon: Icons.fitness_center,
+          onChanged: (_) => _calculateFood(setCalcState),
+        ),
+        const SizedBox(height: 12),
+        _buildCalcDropdown(
+          label: 'Tipo',
+          value: _calculatorPetType,
+          items: ['Cachorro', 'Gato'],
+          icon: Icons.pets,
+          onChanged: (val) {
+            if (val == null) return;
+            setCalcState(() {
+              _calculatorPetType = val;
+              _calculateFood(setCalcState);
+            });
+          },
+        ),
+        const SizedBox(height: 12),
+        _buildCalcDropdown(
+          label: 'Fase da Vida',
+          value: _calculatorLifeStage,
+          items: ['Filhote', 'Adulto', 'Idoso'],
+          icon: Icons.cake,
+          onChanged: (val) {
+            if (val == null) return;
+            setCalcState(() {
+              _calculatorLifeStage = val;
+              _calculateFood(setCalcState);
+            });
+          },
+        ),
+        const SizedBox(height: 12),
+        _buildCalcDropdown(
+          label: 'Nível de Atividade',
+          value: _calculatorActivityLevel,
+          items: ['Baixo', 'Médio', 'Alto'],
+          icon: Icons.directions_run,
+          onChanged: (val) {
+            if (val == null) return;
+            setCalcState(() {
+              _calculatorActivityLevel = val;
+              _calculateFood(setCalcState);
+            });
+          },
+        ),
+        const SizedBox(height: 24),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 500),
+          transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: ScaleTransition(scale: animation, child: child)),
+          child: _dailyFoodAmount != null && _dailyFoodAmount! > 0
+              ? Container(
+                  key: ValueKey(_dailyFoodAmount),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    children: [
+                      const Text(
+                        'Recomendação Diária',
+                        style: TextStyle(
+                          color: Color(0xFF667eea),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${_dailyFoodAmount!.toStringAsFixed(0)}g',
+                        style: const TextStyle(
+                          color: Color(0xFF764ba2),
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : const SizedBox.shrink(key: ValueKey('empty')),
+        ),
+      ],
+    );
+  }
+
+  TextFormField _buildCalcTextFormField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    void Function(String)? onChanged,
+    TextInputType? keyboardType,
+  }) {
+    return TextFormField(
+      controller: controller,
+      onChanged: onChanged,
+      keyboardType: keyboardType,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        prefixIcon: Icon(icon, color: Colors.white70),
+        labelText: label,
+        labelStyle: const TextStyle(color: Colors.white70),
+        filled: true,
+        fillColor: Colors.white.withOpacity(0.2),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.white),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCalcDropdown({
+    required String label,
+    required String value,
+    required List<String> items,
+    required IconData icon,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: value,
+          isExpanded: true,
+          dropdownColor: const Color(0xFF764ba2),
+          icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+          style: const TextStyle(color: Colors.white, fontSize: 16),
+          items: items
+              .map((item) => DropdownMenuItem(
+                    value: item,
+                    child: Row(
+                      children: [
+                        Icon(icon, color: Colors.white70, size: 20),
+                        const SizedBox(width: 12),
+                        Text(item),
+                      ],
+                    ),
+                  ))
+              .toList(),
+          onChanged: onChanged,
+        ),
+      ),
+    );
+  }
+
+  void _calculateFood(StateSetter setCalcState) {
+    final weight = double.tryParse(_calculatorWeightController.text);
+    if (weight == null || weight <= 0) {
+      setCalcState(() => _dailyFoodAmount = null);
+      return;
+    }
+
+    double baseMultiplier = _calculatorPetType == 'Gato' ? 50 : 60;
+
+    switch (_calculatorLifeStage) {
+      case 'Filhote':
+        baseMultiplier *= 1.8;
+        break;
+      case 'Idoso':
+        baseMultiplier *= 0.8;
+        break;
+      case 'Adulto':
+      default:
+        break;
+    }
+
+    switch (_calculatorActivityLevel) {
+      case 'Baixo':
+        baseMultiplier *= 0.85;
+        break;
+      case 'Alto':
+        baseMultiplier *= 1.15;
+        break;
+      case 'Médio':
+      default:
+        break;
+    }
+
+    final result = weight * (baseMultiplier / 2);
+
+    setCalcState(() {
+      _dailyFoodAmount = result > 0 ? result : 0;
+    });
+  }
+
+  String _getDefaultPetImage(String petType) {
+    return petType == 'Gato'
+        ? 'https://i.pinimg.com/736x/87/7b/0a/877b0a7df75e1a3f185ef3d201a0528e.jpg'
+        : 'https://i.natgeofe.com/n/4f5aaece-3300-41a4-b2a8-ed2708a0a27c/domestic-dog_thumb_4x3.jpg';
+  }
+
+  void _showPetPhotoDialog(Pet pet) {
+    showGeneralDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(children: [const Icon(Icons.medical_services, color: Colors.teal), const SizedBox(width: 8), Text(service.name)]),
-        content: SingleChildScrollView(
-          child: ListBody(
-            children: <Widget>[
-              _buildDetailRow(Icons.description, 'Descrição', service.description ?? 'Não informada'),
-              _buildDetailRow(Icons.attach_money, 'Preço', 'R\$ ${service.price.toStringAsFixed(2)}'),
-              const Divider(height: 20),
-              _buildDetailRow(Icons.store, 'Oferecido por', service.ownerName ?? 'Não informado'),
-              _buildDetailRow(Icons.location_on, 'Localização', service.ownerLocation ?? 'Não informada'),
-              _buildDetailRow(Icons.phone, 'Contato', service.ownerPhone ?? 'Não informado'),
-            ],
+      barrierDismissible: true,
+      barrierLabel: 'Fechar',
+      transitionDuration: const Duration(milliseconds: 400),
+      pageBuilder: (context, anim1, anim2) => Container(),
+      transitionBuilder: (context, anim1, anim2, child) {
+        return ScaleTransition(
+          scale: anim1.drive(Tween(begin: 0.7, end: 1.0).chain(CurveTween(curve: Curves.easeOutCubic))),
+          child: FadeTransition(
+            opacity: anim1,
+            child: _buildPetDetailsDialogContent(pet),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPetDetailsDialogContent(Pet pet) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            width: 400,
+            decoration: BoxDecoration(
+              color: const Color(0xFF3A3E59).withOpacity(0.6),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.white.withOpacity(0.1)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Stack(
+                  alignment: Alignment.bottomLeft,
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(24),
+                        topRight: Radius.circular(24),
+                      ),
+                      child: Image.network(
+                        pet.photoUrl != null && pet.photoUrl!.isNotEmpty ? pet.photoUrl! : _getDefaultPetImage(pet.type),
+                        height: 300,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (c, e, s) => Container(
+                          height: 300,
+                          color: Colors.grey.shade800,
+                          child: const Icon(Icons.pets, size: 120, color: Colors.grey),
+                        ),
+                      ),
+                    ),
+                    Container(
+                      height: 150,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [Colors.black.withOpacity(0.8), Colors.transparent],
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Text(
+                        pet.name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          shadows: [Shadow(blurRadius: 4, color: Colors.black)],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildDetailRow(Icons.pets, 'Raça', pet.breed ?? 'Não informado'),
+                      _buildDetailRow(Icons.cake, 'Idade', '${pet.age} anos'),
+                      _buildDetailRow(Icons.fitness_center, 'Peso', '${pet.weight.toStringAsFixed(1)} kg'),
+                      _buildDetailRow(Icons.directions_run, 'Atividade', pet.activityLevel ?? 'Não informado'),
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          TextButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              _showDeleteConfirmationDialog(context, pet.id!);
+                            },
+                            icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                            label: const Text('Excluir', style: TextStyle(color: Colors.redAccent)),
+                          ),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              _showPetFormDialog(pet: pet);
+                            },
+                            icon: const Icon(Icons.edit_outlined),
+                            label: const Text('Editar'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF7b4cfe),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Fechar'))],
       ),
+    );
+  }
+
+  void _showProductDetailsDialog(Product product) {
+    _showCustomDetailsDialog(
+      context: context,
+      title: product.name,
+      imageUrl: product.imageUrl,
+      imagePlaceholder: const Icon(Icons.shopping_bag_outlined, size: 60, color: Colors.grey),
+      children: [
+        _buildDetailRow(Icons.description, 'Descrição', product.description ?? 'Nenhuma descrição'),
+        _buildDetailRow(Icons.price_change, 'Preço', 'R\$ ${product.price.toStringAsFixed(2)}'),
+        _buildDetailRow(Icons.store, 'Vendido por', product.ownerName ?? 'Não informado'),
+        _buildDetailRow(Icons.location_on, 'Localização', product.ownerLocation ?? 'Não informado'),
+        if (product.ownerPhone != null)
+          _buildWhatsAppButton(product.ownerPhone!),
+      ],
+    );
+  }
+
+  void _showServiceDetailsDialog(VetService service) {
+    _showCustomDetailsDialog(
+      context: context,
+      title: service.name,
+      imageUrl: service.imageUrl,
+      imagePlaceholder: const Icon(Icons.local_hospital_outlined, size: 60, color: Colors.blueAccent),
+      children: [
+        _buildDetailRow(Icons.description, 'Descrição', service.description ?? 'Nenhuma descrição'),
+        _buildDetailRow(Icons.price_change, 'Preço', 'R\$ ${service.price.toStringAsFixed(2)}'),
+        _buildDetailRow(Icons.person, 'Oferecido por', service.ownerName ?? 'Não informado'),
+        _buildDetailRow(Icons.location_on, 'Localização', service.ownerLocation ?? 'Não informado'),
+        if (service.ownerCrmv != null)
+          _buildDetailRow(Icons.badge, 'CRMV', service.ownerCrmv!),
+        if (service.operatingHours != null)
+          _buildDetailRow(Icons.access_time, 'Horário', service.operatingHours!),
+        if (service.ownerPhone != null)
+          _buildWhatsAppButton(service.ownerPhone!),
+      ],
+    );
+  }
+
+  void _showCustomDetailsDialog({
+    required BuildContext context,
+    required String title,
+    String? imageUrl,
+    required Widget imagePlaceholder,
+    required List<Widget> children,
+  }) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Dismiss',
+      transitionDuration: const Duration(milliseconds: 400),
+      pageBuilder: (context, anim1, anim2) => Container(), // Page builder is not used
+      transitionBuilder: (context, anim1, anim2, child) {
+        return ScaleTransition(
+          scale: CurvedAnimation(parent: anim1, curve: Curves.elasticOut),
+          child: FadeTransition(
+            opacity: CurvedAnimation(parent: anim1, curve: Curves.easeOut),
+            child: AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              titlePadding: const EdgeInsets.all(0),
+              contentPadding: const EdgeInsets.all(20),
+              title: ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(24),
+                  topRight: Radius.circular(24),
+                ),
+                child: Container(
+                  height: 180,
+                  decoration: BoxDecoration(
+                    image: imageUrl != null && imageUrl.isNotEmpty
+                        ? DecorationImage(
+                            image: NetworkImage(imageUrl),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
+                  ),
+                  child: imageUrl == null || imageUrl.isEmpty
+                      ? Center(child: imagePlaceholder)
+                      : Container(
+                          alignment: Alignment.bottomLeft,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                              colors: [Colors.black.withOpacity(0.7), Colors.transparent],
+                            ),
+                          ),
+                          child: Text(
+                            title,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              shadows: [Shadow(blurRadius: 2, color: Colors.black)],
+                            ),
+                          ),
+                        ),
+                ),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: children,
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Fechar'),
+                )
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -932,15 +1451,15 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: Colors.grey.shade600),
-          const SizedBox(width: 16),
+          Icon(icon, size: 20, color: Theme.of(context).primaryColor),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black54)),
                 const SizedBox(height: 2),
-                Text(value, style: TextStyle(color: Colors.grey.shade800)),
+                Text(value, style: const TextStyle(fontSize: 16)),
               ],
             ),
           ),
@@ -949,49 +1468,92 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
     );
   }
 
-  Widget _buildPetFormDialog({required String title, required VoidCallback onSave}) {
-    return AlertDialog(
-      title: Text(title),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      content: StatefulBuilder(
-        builder: (context, setDialogState) {
-          return Form(
-            key: _petFormKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(controller: _petNameController, decoration: const InputDecoration(labelText: 'Nome do Pet'), validator: (v) => v!.isEmpty ? 'Obrigatório' : null),
-                  DropdownButtonFormField<String>(
-                    value: _petType,
-                    decoration: const InputDecoration(labelText: 'Espécie'),
-                    items: ['Cachorro', 'Gato'].map((String value) => DropdownMenuItem<String>(value: value, child: Text(value))).toList(),
-                    onChanged: (newValue) => setDialogState(() => _petType = newValue!),
-                  ),
-                  TextFormField(controller: _petBreedController, decoration: const InputDecoration(labelText: 'Raça')),
-                  TextFormField(controller: _petAgeController, decoration: const InputDecoration(labelText: 'Idade (anos)'), keyboardType: TextInputType.number),
-                  TextFormField(controller: _petWeightController, decoration: const InputDecoration(labelText: 'Peso (kg)'), keyboardType: TextInputType.number, validator: (v) => v!.isEmpty ? 'Obrigatório' : null),
-                  DropdownButtonFormField<String>(
-                    value: _petActivityLevel,
-                    decoration: const InputDecoration(labelText: 'Nível de Atividade'),
-                    items: ['Baixo', 'Médio', 'Alto'].map((String value) => DropdownMenuItem<String>(value: value, child: Text(value))).toList(),
-                    onChanged: (newValue) => setDialogState(() => _petActivityLevel = newValue!),
-                  ),
-                  TextFormField(
-                    controller: _petPhotoUrlController,
-                    decoration: const InputDecoration(labelText: 'URL da Foto do Pet'),
-                    keyboardType: TextInputType.url,
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
+  Widget _buildWhatsAppButton(String phone) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16.0),
+      child: Center(
+        child: ElevatedButton.icon(
+          onPressed: () => _launchWhatsApp(phone),
+          icon: const Icon(Icons.message, color: Colors.white),
+          label: const Text('Entrar em contato via WhatsApp'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF25D366),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          ),
+        ),
       ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-        ElevatedButton(onPressed: onSave, child: const Text('Salvar')),
-      ],
     );
   }
+
+  void _launchWhatsApp(String phone) async {
+    final whatsappUrl = 'https://wa.me/${phone.replaceAll(RegExp(r'[^\d]'), '')}';
+    final uri = Uri.parse(whatsappUrl);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Não foi possível abrir o WhatsApp')),
+      );
+    }
+  }
+}
+
+// --- CUSTOM PAINTER PARA AS PATINHAS ---
+
+class _Paw {
+  Offset position;
+  double scale;
+  double opacity;
+  double speed;
+
+  _Paw({
+    required this.position,
+    required this.scale,
+    required this.opacity,
+    required this.speed,
+  });
+}
+
+class _PawPrintPainter extends CustomPainter {
+  final List<_Paw> paws;
+  final Random _random = Random();
+
+  _PawPrintPainter(this.paws);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (var paw in paws) {
+      final paint = Paint()
+        ..color = Colors.white.withOpacity(paw.opacity)
+        ..style = PaintingStyle.fill;
+      
+      final angle = _random.nextDouble() * 0.5 - 0.25; // Pequena variação no ângulo
+
+      canvas.save();
+      canvas.translate(paw.position.dx, paw.position.dy);
+      canvas.rotate(angle);
+      canvas.scale(paw.scale);
+      
+      _drawIndividualPaw(canvas, Offset.zero, paint);
+
+      canvas.restore();
+    }
+  }
+
+  void _drawIndividualPaw(Canvas canvas, Offset center, Paint paint) {
+    // Palma
+    final mainPad = Rect.fromCenter(center: center, width: 20, height: 18);
+    canvas.drawRRect(RRect.fromRectAndRadius(mainPad, const Radius.circular(5)), paint);
+    // Dedos
+    canvas.drawCircle(center + const Offset(0, -14), 5, paint);
+    canvas.drawCircle(center + const Offset(-10, -8), 4.5, paint);
+    canvas.drawCircle(center + const Offset(10, -8), 4.5, paint);
+    canvas.drawCircle(center + const Offset(-6, 2), 4, paint);
+    canvas.drawCircle(center + const Offset(6, 2), 4, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _PawPrintPainter oldDelegate) => true;
 } 

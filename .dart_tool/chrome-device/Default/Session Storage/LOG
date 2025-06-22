@@ -1,4 +1,10 @@
-2025/06/22-13:01:24.875 4 Reusing MANIFEST /tmp/flutter_tools.VZIWIW/flutter_tools_chrome_device.SSPHED/Default/Session Storage/MANIFEST-000001
-2025/06/22-13:01:24.876 4 Recovering log #8
-2025/06/22-13:01:24.876 4 Reusing old log /tmp/flutter_tools.VZIWIW/flutter_tools_chrome_device.SSPHED/Default/Session Storage/000008.log 
-2025/06/22-13:01:24.876 4 Delete type=0 #3
+2025/06/22-15:18:23.004 4 Reusing MANIFEST /tmp/flutter_tools.HLXLIN/flutter_tools_chrome_device.USGZTO/Default/Session Storage/MANIFEST-000001
+2025/06/22-15:18:23.004 4 Recovering log #16
+2025/06/22-15:18:23.005 4 Reusing old log /tmp/flutter_tools.HLXLIN/flutter_tools_chrome_device.USGZTO/Default/Session Storage/000016.log 
+2025/06/22-15:18:23.005 4 Delete type=2 #7
+2025/06/22-15:18:23.005 4 Delete type=2 #12
+2025/06/22-15:18:23.005 4 Delete type=0 #13
+2025/06/22-15:18:23.005 4 Delete type=2 #14
+2025/06/22-15:18:23.005 4 Delete type=0 #8
+2025/06/22-15:18:23.005 4 Delete type=2 #9
+2025/06/22-15:18:23.005 4 Delete type=0 #3

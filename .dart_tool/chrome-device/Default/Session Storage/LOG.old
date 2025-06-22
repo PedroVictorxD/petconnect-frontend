@@ -1,12 +1,10 @@
-2025/06/22-12:00:44.659 4 Reusing MANIFEST /tmp/flutter_tools.BAGNMC/flutter_tools_chrome_device.HTRRNU/Default/Session Storage/MANIFEST-000001
-2025/06/22-12:00:44.659 4 Recovering log #3
-2025/06/22-12:00:44.660 4 Reusing old log /tmp/flutter_tools.BAGNMC/flutter_tools_chrome_device.HTRRNU/Default/Session Storage/000003.log 
-2025/06/22-12:11:02.112 5 Level-0 table #5: started
-2025/06/22-12:11:02.120 5 Level-0 table #5: 72187 bytes OK
-2025/06/22-12:11:02.124 5 Delete type=0 #3
-2025/06/22-12:19:23.208 4 Level-0 table #7: started
-2025/06/22-12:19:23.213 4 Level-0 table #7: 71679 bytes OK
-2025/06/22-12:19:23.216 4 Delete type=0 #4
-2025/06/22-12:24:28.604 4 Level-0 table #9: started
-2025/06/22-12:24:28.607 4 Level-0 table #9: 70263 bytes OK
-2025/06/22-12:24:28.614 4 Delete type=0 #6
+2025/06/22-15:10:05.993 4 Reusing MANIFEST /tmp/flutter_tools.HYINWR/flutter_tools_chrome_device.GUOVBU/Default/Session Storage/MANIFEST-000001
+2025/06/22-15:10:05.994 4 Recovering log #16
+2025/06/22-15:10:05.995 4 Reusing old log /tmp/flutter_tools.HYINWR/flutter_tools_chrome_device.GUOVBU/Default/Session Storage/000016.log 
+2025/06/22-15:10:05.995 4 Delete type=2 #7
+2025/06/22-15:10:05.995 4 Delete type=2 #12
+2025/06/22-15:10:05.995 4 Delete type=0 #13
+2025/06/22-15:10:05.995 4 Delete type=2 #14
+2025/06/22-15:10:05.995 4 Delete type=0 #8
+2025/06/22-15:10:05.995 4 Delete type=2 #9
+2025/06/22-15:10:05.995 4 Delete type=0 #3
