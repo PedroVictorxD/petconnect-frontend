@@ -27,17 +27,22 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _navigateToHome(User user) {
+  void _navigateToHome(String? userType) {
     Widget homeScreen;
     
-    if (user.isVeterinario) {
-      homeScreen = const VetHomeScreen();
-    } else if (user.isLojista) {
-      homeScreen = const LojistaHomeScreen();
-    } else if (user.isAdmin) {
-      homeScreen = const AdminHomeScreen();
-    } else {
-      homeScreen = const TutorHomeScreen();
+    switch (userType) {
+      case 'VETERINARIO':
+        homeScreen = const VetHomeScreen();
+        break;
+      case 'LOJISTA':
+        homeScreen = const LojistaHomeScreen();
+        break;
+      case 'ADMIN':
+        homeScreen = const AdminHomeScreen();
+        break;
+      case 'TUTOR':
+      default:
+        homeScreen = const TutorHomeScreen();
     }
 
     Navigator.of(context).pushReplacement(
@@ -54,8 +59,8 @@ class _LoginScreenState extends State<LoginScreen> {
       _passwordController.text,
     );
 
-    if (success && authProvider.currentUser != null) {
-      _navigateToHome(authProvider.currentUser!);
+    if (success && authProvider.userType != null) {
+      _navigateToHome(authProvider.userType);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

@@ -7,11 +7,13 @@ import '../services/api_service.dart';
 class AuthProvider extends ChangeNotifier {
   User? _currentUser;
   String? _token;
+  String? _userType;
   bool _isLoading = false;
   String? _error;
 
   User? get currentUser => _currentUser;
   String? get token => _token;
+  String? get userType => _userType;
   bool get isAuthenticated => _token != null && _currentUser != null;
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -25,10 +27,12 @@ class AuthProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final userJson = prefs.getString('currentUser');
     final token = prefs.getString('token');
+    final userType = prefs.getString('userType');
 
-    if (userJson != null && token != null) {
+    if (userJson != null && token != null && userType != null) {
       _currentUser = User.fromJson(json.decode(userJson));
       _token = token;
+      _userType = userType;
       ApiService.setAuthToken(_token);
       notifyListeners();
     }
@@ -43,11 +47,15 @@ class AuthProvider extends ChangeNotifier {
       if (response != null && response['token'] != null && response['user'] != null) {
         _currentUser = response['user'];
         _token = response['token'];
+        _userType = _currentUser?.dtype;
         ApiService.setAuthToken(_token);
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', _token!);
         await prefs.setString('currentUser', json.encode(_currentUser!.toJson()));
+        if (_userType != null) {
+          await prefs.setString('userType', _userType!);
+        }
 
         _isLoading = false;
         notifyListeners();
@@ -111,10 +119,12 @@ class AuthProvider extends ChangeNotifier {
   Future<void> logout() async {
     _currentUser = null;
     _token = null;
+    _userType = null;
     ApiService.setAuthToken(null);
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('currentUser');
     await prefs.remove('token');
+    await prefs.remove('userType');
     notifyListeners();
   }
 

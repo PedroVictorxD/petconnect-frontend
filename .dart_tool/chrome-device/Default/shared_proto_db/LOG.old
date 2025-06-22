@@ -1,4 +1,2 @@
-2025/06/21-20:50:48.287 3bce7 Reusing MANIFEST /tmp/flutter_tools.EBKSUU/flutter_tools_chrome_device.BQZAJU/Default/shared_proto_db/MANIFEST-000001
-2025/06/21-20:50:48.287 3bce7 Recovering log #4
-2025/06/21-20:50:48.287 3bce7 Reusing old log /tmp/flutter_tools.EBKSUU/flutter_tools_chrome_device.BQZAJU/Default/shared_proto_db/000004.log 
-2025/06/21-20:50:48.287 3bce7 Delete type=0 #3
+2025/06/22-11:21:13.204 395d Creating DB /tmp/flutter_tools.NBSOHT/flutter_tools_chrome_device.QFQUAV/Default/shared_proto_db since it was missing.
+2025/06/22-11:21:13.322 395d Reusing MANIFEST /tmp/flutter_tools.NBSOHT/flutter_tools_chrome_device.QFQUAV/Default/shared_proto_db/MANIFEST-000001

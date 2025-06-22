@@ -11,6 +11,7 @@
         "flutter_secure_storage",
         "http",
         "json_annotation",
+        "mask_text_input_formatter",
         "provider",
         "shared_preferences"
       ],
@@ -115,6 +116,13 @@
         "test_api",
         "vector_math",
         "vm_service"
+      ]
+    },
+    {
+      "name": "mask_text_input_formatter",
+      "version": "2.9.0",
+      "dependencies": [
+        "flutter"
       ]
     },
     {

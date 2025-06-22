@@ -39,8 +39,8 @@ class User {
   factory User.fromJson(Map<String, dynamic> json) => _$UserFromJson(json);
   Map<String, dynamic> toJson() => _$UserToJson(this);
 
-  bool get isVeterinario => dtype == 'Veterinario';
-  bool get isLojista => dtype == 'Lojista';
-  bool get isTutor => dtype == 'Tutor';
-  bool get isAdmin => dtype == 'Admin';
+  bool get isVeterinario => dtype == 'VETERINARIO';
+  bool get isLojista => dtype == 'LOJISTA';
+  bool get isTutor => dtype == 'TUTOR';
+  bool get isAdmin => dtype == 'ADMIN';
 } 

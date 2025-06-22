@@ -1,1 +1,0 @@
- /home/pedro/a3hoje/petconnect-frontend/build/web/manifest.json:  /home/pedro/a3hoje/petconnect-frontend/web/index.html /home/pedro/a3hoje/petconnect-frontend/web/manifest.json
