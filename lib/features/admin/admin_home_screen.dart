@@ -248,7 +248,10 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> with TickerProviderSt
         DataCell(Row(
           children: [
             IconButton(icon: const Icon(Icons.edit, color: Colors.blue), onPressed: () => _editUser(user)),
-            IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteItem('user', user.id!)),
+            IconButton(
+              icon: const Icon(Icons.delete, color: Colors.red), 
+              onPressed: () => _deleteItem(context, 'usuário', user.id!, (id) => Provider.of<DataProvider>(context, listen: false).deleteUser(id)),
+            ),
           ],
         )),
       ])).toList(),
@@ -272,7 +275,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> with TickerProviderSt
         DataCell(Text(pet.tutor?['name'] ?? 'Não informado')),
         DataCell(Row(
           children: [
-            IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteItem('pet', pet.id!)),
+            IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteItem(context, 'pet', pet.id!, (id) => Provider.of<DataProvider>(context, listen: false).deletePet(id))),
           ],
         )),
       ])).toList(),
@@ -295,12 +298,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> with TickerProviderSt
         DataCell(Row(
           children: [
             IconButton(
-              icon: const Icon(Icons.edit),
+              icon: const Icon(Icons.edit, color: Colors.blue),
               onPressed: () => _editProduct(product),
             ),
             IconButton(
               icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: () => _deleteItem('products', product.id!),
+              onPressed: () => _deleteItem(context, 'produto', product.id!, (id) => Provider.of<DataProvider>(context, listen: false).deleteProduct(id)),
             ),
           ],
         )),
@@ -324,12 +327,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> with TickerProviderSt
         DataCell(Row(
           children: [
             IconButton(
-              icon: const Icon(Icons.edit),
-              onPressed: () => _editVetService(service),
+              icon: const Icon(Icons.edit, color: Colors.blue),
+              onPressed: () => _editService(service),
             ),
             IconButton(
               icon: const Icon(Icons.delete, color: Colors.red),
-              onPressed: () => _deleteItem('services', service.id!),
+              onPressed: () => _deleteItem(context, 'serviço', service.id!, (id) => Provider.of<DataProvider>(context, listen: false).deleteVetService(id)),
             ),
           ],
         )),
@@ -338,17 +341,23 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> with TickerProviderSt
     );
   }
 
-  // Funções para editar
   void _editUser(User user) {
     final nameController = TextEditingController(text: user.name);
     final emailController = TextEditingController(text: user.email);
     final phoneController = TextEditingController(text: user.phone);
+    
+    // Controllers para campos específicos
+    final crmvController = TextEditingController(text: user.dtype == 'Veterinario' ? (user as dynamic).crmv ?? '' : '');
+    final cnpjController = TextEditingController(text: user.dtype == 'Lojista' ? (user as dynamic).cnpj ?? '' : '');
+    final responsibleNameController = TextEditingController(text: user.dtype == 'Lojista' ? (user as dynamic).responsibleName ?? '' : '');
+    final storeTypeController = TextEditingController(text: user.dtype == 'Lojista' ? (user as dynamic).storeType ?? '' : '');
+    final operatingHoursController = TextEditingController(text: user.dtype == 'Lojista' ? (user as dynamic).operatingHours ?? '' : '');
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text('Editar Usuário'),
+          title: Text('Editar ${user.dtype ?? 'Usuário'}'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -356,6 +365,21 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> with TickerProviderSt
                 TextField(controller: nameController, decoration: InputDecoration(labelText: 'Nome')),
                 TextField(controller: emailController, decoration: InputDecoration(labelText: 'Email')),
                 TextField(controller: phoneController, decoration: InputDecoration(labelText: 'Telefone')),
+                
+                // Campos específicos para Veterinário
+                if (user.dtype == 'Veterinario') ...[
+                  const SizedBox(height: 16),
+                  TextField(controller: crmvController, decoration: InputDecoration(labelText: 'CRMV')),
+                ],
+                
+                // Campos específicos para Lojista
+                if (user.dtype == 'Lojista') ...[
+                  const SizedBox(height: 16),
+                  TextField(controller: cnpjController, decoration: InputDecoration(labelText: 'CNPJ')),
+                  TextField(controller: responsibleNameController, decoration: InputDecoration(labelText: 'Nome do Responsável')),
+                  TextField(controller: storeTypeController, decoration: InputDecoration(labelText: 'Tipo de Loja')),
+                  TextField(controller: operatingHoursController, decoration: InputDecoration(labelText: 'Horário de Funcionamento')),
+                ],
               ],
             ),
           ),
@@ -363,16 +387,25 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> with TickerProviderSt
             TextButton(onPressed: () => Navigator.of(context).pop(), child: Text('Cancelar')),
             ElevatedButton(
               onPressed: () async {
-                final updatedUser = User(
-                  id: user.id,
-                  name: nameController.text,
-                  email: emailController.text,
-                  phone: phoneController.text,
-                  password: user.password, // a senha não é alterada aqui
-                );
+                // Criar Map com os dados atualizados
+                final Map<String, dynamic> updateData = {
+                  'name': nameController.text,
+                  'email': emailController.text,
+                  'phone': phoneController.text,
+                };
+                
+                // Adicionar campos específicos baseados no tipo
+                if (user.dtype == 'Veterinario') {
+                  updateData['crmv'] = crmvController.text;
+                } else if (user.dtype == 'Lojista') {
+                  updateData['cnpj'] = cnpjController.text;
+                  updateData['responsibleName'] = responsibleNameController.text;
+                  updateData['storeType'] = storeTypeController.text;
+                  updateData['operatingHours'] = operatingHoursController.text;
+                }
 
                 final dataProvider = Provider.of<DataProvider>(context, listen: false);
-                final success = await dataProvider.updateUser(updatedUser);
+                final success = await dataProvider.updateUserWithMap(user.id!, updateData);
 
                 Navigator.of(context).pop();
 
@@ -442,7 +475,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> with TickerProviderSt
     );
   }
 
-  void _editVetService(VetService service) {
+  void _editService(VetService service) {
     final nameController = TextEditingController(text: service.name);
     final descriptionController = TextEditingController(text: service.description);
     final priceController = TextEditingController(text: service.price.toString());
@@ -492,45 +525,33 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> with TickerProviderSt
       },
     );
   }
-  
-  // Função para deletar com confirmação
-  void _deleteItem(String type, int id) {
-    showDialog(
+
+  void _deleteItem(BuildContext context, String itemType, int itemId, Future<bool> Function(int) deleteFunction) async {
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Confirmar Exclusão'),
-          content: Text('Tem certeza de que deseja excluir este item? Esta ação não pode ser desfeita.'),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancelar'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            TextButton(
-              child: const Text('Excluir', style: TextStyle(color: Colors.red)),
-              onPressed: () async {
-                final dataProvider = Provider.of<DataProvider>(context, listen: false);
-                bool success = false;
-                switch(type) {
-                  case 'user': success = await dataProvider.deleteData(type, id); break;
-                  case 'pet': success = await dataProvider.deleteData(type, id); break;
-                  case 'product': success = await dataProvider.deleteData(type, id); break;
-                  case 'vet-service': success = await dataProvider.deleteData(type, id); break;
-                }
-                
-                Navigator.of(context).pop(); // Fecha o diálogo
-                
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(success ? 'Item excluído com sucesso!' : 'Erro ao excluir o item.'),
-                    backgroundColor: success ? Colors.green : Colors.red,
-                  ),
-                );
-              },
-            ),
-          ],
-        );
-      },
+      builder: (ctx) => AlertDialog(
+        title: Text('Confirmar Exclusão'),
+        content: Text('Tem certeza de que deseja excluir este $itemType?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancelar')),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Excluir', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
     );
+
+    if (confirmed == true) {
+      final success = await deleteFunction(itemId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(success ? '$itemType excluído com sucesso.' : 'Erro ao excluir o $itemType.'),
+            backgroundColor: success ? Colors.green : Colors.red,
+          ),
+        );
+      }
+    }
   }
 } 

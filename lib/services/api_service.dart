@@ -7,14 +7,25 @@ import '../models/vet_service.dart';
 
 class ApiService {
   static const String baseUrl = 'http://localhost:8080';
+  static String? _token;
   
   // Headers padrão
-  static Map<String, String> get _headers => {
+  static Map<String, String> get _headers {
+    final headers = <String, String>{
     'Content-Type': 'application/json',
   };
+    if (_token != null) {
+      headers['Authorization'] = 'Bearer $_token';
+    }
+    return headers;
+  }
+  
+  static void setAuthToken(String? token) {
+    _token = token;
+  }
 
   // Autenticação
-  static Future<User?> login(String email, String password) async {
+  static Future<Map<String, dynamic>?> login(String email, String password) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/api/auth/login'),
@@ -26,7 +37,11 @@ class ApiService {
       );
 
       if (response.statusCode == 200) {
-        return User.fromJson(jsonDecode(response.body));
+        final body = jsonDecode(response.body);
+        return {
+          'token': body['token'],
+          'user': User.fromJson(body['user']),
+        };
       }
       return null;
     } catch (e) {
@@ -39,7 +54,7 @@ class ApiService {
   static Future<User?> createTutor(User user) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/tutores'),
+        Uri.parse('$baseUrl/api/auth/register-tutor'),
         headers: _headers,
         body: jsonEncode(user.toJson()),
       );
@@ -57,7 +72,7 @@ class ApiService {
   static Future<User?> createVeterinario(User user) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/veterinarios'),
+        Uri.parse('$baseUrl/api/auth/register-veterinario'),
         headers: _headers,
         body: jsonEncode(user.toJson()),
       );
@@ -75,7 +90,7 @@ class ApiService {
   static Future<User?> createLojista(User user) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/api/lojistas'),
+        Uri.parse('$baseUrl/api/auth/register-lojista'),
         headers: _headers,
         body: jsonEncode(user.toJson()),
       );
@@ -112,10 +127,10 @@ class ApiService {
     try {
       final response = await http.get(Uri.parse('$baseUrl/api/admin/users'), headers: _headers);
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
+        if (response.statusCode == 200) {
+          final List<dynamic> data = jsonDecode(response.body);
         return data.map((json) => User.fromJson(json)).toList();
-      } else {
+        } else {
         print('Erro ao buscar todos os usuários: ${response.statusCode}');
         return [];
       }
@@ -128,10 +143,24 @@ class ApiService {
   static Future<User?> updateUser(User user) async {
     if (user.id == null) return null;
     try {
+      // Criar um Map apenas com os campos que podem ser alterados
+      final Map<String, dynamic> updateData = {};
+      
+      if (user.name.isNotEmpty) updateData['name'] = user.name;
+      if (user.email.isNotEmpty) updateData['email'] = user.email;
+      if (user.phone != null && user.phone!.isNotEmpty) updateData['phone'] = user.phone;
+      
+      // Adicionar campos específicos baseados no tipo de usuário
+      if (user.dtype == 'Veterinario') {
+        // Campos específicos do veterinário serão adicionados pelo frontend
+      } else if (user.dtype == 'Lojista') {
+        // Campos específicos do lojista serão adicionados pelo frontend
+      }
+      
       final response = await http.put(
         Uri.parse('$baseUrl/api/admin/users/${user.id}'),
         headers: _headers,
-        body: jsonEncode(user.toJson()),
+        body: jsonEncode(updateData),
       );
       if (response.statusCode == 200) {
         return User.fromJson(jsonDecode(response.body));
@@ -140,6 +169,36 @@ class ApiService {
     } catch (e) {
       print('Erro ao atualizar usuário: $e');
       return null;
+    }
+  }
+
+  static Future<User?> updateUserWithMap(int userId, Map<String, dynamic> updateData) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/api/admin/users/$userId'),
+        headers: _headers,
+        body: jsonEncode(updateData),
+      );
+      if (response.statusCode == 200) {
+        return User.fromJson(jsonDecode(response.body));
+      }
+      return null;
+    } catch (e) {
+      print('Erro ao atualizar usuário: $e');
+      return null;
+    }
+  }
+
+  static Future<bool> deleteUser(int id) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/api/admin/users/$id'),
+        headers: _headers,
+      );
+      return response.statusCode == 204;
+    } catch (e) {
+      print('Erro ao deletar usuário: $e');
+      return false;
     }
   }
 

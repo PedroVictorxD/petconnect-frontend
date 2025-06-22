@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import '../../models/user.dart';
+import '../../models/pet.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_provider.dart';
-import '../../models/pet.dart';
 import '../../models/product.dart';
 import '../../models/vet_service.dart';
 import 'dart:math';
@@ -23,6 +24,7 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
   final _petWeightController = TextEditingController();
   final _petPhotoUrlController = TextEditingController();
   String _petType = 'Cachorro';
+  String _petActivityLevel = 'Médio';
 
   // Calculadora
   final _calculatorWeightController = TextEditingController();
@@ -71,7 +73,10 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
     _petAgeController.clear();
     _petWeightController.clear();
     _petPhotoUrlController.clear();
-    setState(() { _petType = 'Cachorro'; });
+    setState(() { 
+      _petType = 'Cachorro'; 
+      _petActivityLevel = 'Médio';
+    });
   }
 
   // --- ADD PET ---
@@ -88,17 +93,31 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
 
   Future<void> _addPet() async {
     if (!_petFormKey.currentState!.validate()) return;
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final dataProvider = Provider.of<DataProvider>(context, listen: false);
+
+    // 1. Pega o usuário logado
+    final User tutor = authProvider.currentUser!;
+
     final pet = Pet(
       name: _petNameController.text,
       type: _petType,
       breed: _petBreedController.text,
       age: int.tryParse(_petAgeController.text) ?? 0,
       weight: double.tryParse(_petWeightController.text.replaceAll(',', '.')) ?? 0.0,
+      activityLevel: _petActivityLevel,
       photoUrl: _petPhotoUrlController.text,
-      tutor: { 'id': Provider.of<AuthProvider>(context, listen: false).currentUser!.id! },
+      // 3. Associa o tutor como um Map com o id
+      tutor: {
+        'id': tutor.id,
+        'name': tutor.name,
+        'email': tutor.email,
+      },
     );
+
     final success = await dataProvider.createPet(pet);
+
     if (mounted) {
       Navigator.pop(context);
       _showFeedback('Pet adicionado com sucesso!', success, dataProvider.error);
@@ -114,6 +133,7 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
     _petWeightController.text = pet.weight.toString().replaceAll('.', ',');
     _petPhotoUrlController.text = pet.photoUrl ?? '';
     _petType = pet.type;
+    _petActivityLevel = pet.activityLevel ?? 'Médio';
     showDialog(
       context: context,
       builder: (context) => _buildPetFormDialog(
@@ -133,6 +153,7 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
       breed: _petBreedController.text,
       age: int.tryParse(_petAgeController.text) ?? 0,
       weight: double.tryParse(_petWeightController.text.replaceAll('.', ',')) ?? 0.0,
+      activityLevel: _petActivityLevel,
       photoUrl: _petPhotoUrlController.text,
       tutor: oldPet.tutor,
     );
@@ -167,9 +188,9 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
     );
   }
 
-  void _showFeedback(String successMessage, bool success, String? error) {
+  void _showFeedback(String message, bool success, String? error) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(success ? successMessage : error ?? 'Ocorreu um erro.'),
+      content: Text(success ? message : error ?? 'Ocorreu um erro.'),
       backgroundColor: success ? Colors.green : Colors.red,
     ));
   }
@@ -727,6 +748,12 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
                   TextFormField(controller: _petBreedController, decoration: const InputDecoration(labelText: 'Raça')),
                   TextFormField(controller: _petAgeController, decoration: const InputDecoration(labelText: 'Idade (anos)'), keyboardType: TextInputType.number),
                   TextFormField(controller: _petWeightController, decoration: const InputDecoration(labelText: 'Peso (kg)'), keyboardType: TextInputType.number, validator: (v) => v!.isEmpty ? 'Obrigatório' : null),
+                  DropdownButtonFormField<String>(
+                    value: _petActivityLevel,
+                    decoration: const InputDecoration(labelText: 'Nível de Atividade'),
+                    items: ['Baixo', 'Médio', 'Alto'].map((String value) => DropdownMenuItem<String>(value: value, child: Text(value))).toList(),
+                    onChanged: (newValue) => setDialogState(() => _petActivityLevel = newValue!),
+                  ),
                   TextFormField(
                     controller: _petPhotoUrlController,
                     decoration: const InputDecoration(labelText: 'URL da Foto do Pet'),

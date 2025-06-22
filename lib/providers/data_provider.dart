@@ -201,7 +201,7 @@ class DataProvider extends ChangeNotifier {
         notifyListeners();
         return true;
       }
-       _error = 'Erro ao atualizar produto';
+      _error = 'Erro ao atualizar produto';
       _isLoading = false;
       notifyListeners();
       return false;
@@ -407,6 +407,59 @@ class DataProvider extends ChangeNotifier {
       return false;
     } catch (e) {
       _error = 'Erro ao atualizar usuário: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> updateUserWithMap(int userId, Map<String, dynamic> updateData) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final updatedUser = await ApiService.updateUserWithMap(userId, updateData);
+      if (updatedUser != null) {
+        final index = _allUsers.indexWhere((u) => u.id == userId);
+        if (index != -1) {
+          _allUsers[index] = updatedUser;
+        }
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      }
+      _error = 'Erro ao atualizar usuário';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _error = 'Erro ao atualizar usuário: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // Deletar usuário (Admin)
+  Future<bool> deleteUser(int id) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final success = await ApiService.deleteUser(id);
+      if (success) {
+        _allUsers.removeWhere((u) => u.id == id);
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      }
+      _error = 'Erro ao deletar usuário';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _error = 'Erro ao deletar usuário: $e';
       _isLoading = false;
       notifyListeners();
       return false;
