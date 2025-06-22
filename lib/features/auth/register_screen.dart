@@ -6,6 +6,8 @@ import '../tutor/tutor_home_screen.dart';
 import '../veterinario/vet_home_screen.dart';
 import '../lojista/lojista_home_screen.dart';
 import '../admin/admin_home_screen.dart';
+import 'user_type_selection.dart';
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -28,7 +30,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _operatingHoursController = TextEditingController();
   
   bool _obscurePassword = true;
-  String _selectedUserType = 'tutor';
+  String? _selectedUserType;
+
+  final _phoneFormatter = MaskTextInputFormatter(
+    mask: '(##) #####-####',
+    filter: { "#": RegExp(r'[0-9]') },
+  );
+  final _cnpjFormatter = MaskTextInputFormatter(
+    mask: '##.###.###/####-##',
+    filter: { "#": RegExp(r'[0-9]') },
+  );
+  final _crmvFormatter = MaskTextInputFormatter(
+    mask: 'AA-#####',
+    filter: { "A": RegExp(r'[A-Za-z]'), "#": RegExp(r'[0-9]') },
+  );
 
   @override
   void dispose() {
@@ -66,8 +81,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Converte o tipo de usuário para o formato esperado pelo backend (primeira letra maiúscula)
-    final String dtype = _selectedUserType[0].toUpperCase() + _selectedUserType.substring(1);
+    // Converte o tipo de usuário para o formato esperado pelo backend (maiúsculas)
+    final String dtype = _selectedUserType!.toUpperCase();
 
     final user = User(
       name: _nameController.text.trim(),
@@ -84,7 +99,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final success = await authProvider.register(user, _selectedUserType);
+    final success = await authProvider.register(user, _selectedUserType!);
 
     if (success && authProvider.currentUser != null) {
       _navigateToHome(authProvider.currentUser!);
@@ -162,28 +177,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                           const SizedBox(height: 32),
 
-                          // Tipo de usuário
-                          DropdownButtonFormField<String>(
-                            value: _selectedUserType,
-                            decoration: InputDecoration(
-                              labelText: 'Tipo de Usuário',
-                              prefixIcon: const Icon(Icons.person),
-                              border: OutlineInputBorder(
+                          // Botão para selecionar tipo de usuário
+                          ElevatedButton.icon(
+                            icon: const Icon(Icons.person_outline),
+                            label: Text(
+                              _selectedUserType == null
+                                  ? 'Selecionar Tipo de Usuário'
+                                  : 'Tipo: ${_selectedUserType![0].toUpperCase()}${_selectedUserType!.substring(1)}',
+                            ),
+                            onPressed: () async {
+                              final selected = await showDialog<String>(
+                                context: context,
+                                builder: (context) => const UserTypeSelectionScreen(),
+                              );
+                              if (selected != null) {
+                                setState(() {
+                                  _selectedUserType = selected;
+                                });
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              minimumSize: const Size(double.infinity, 50),
+                              shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              filled: true,
-                              fillColor: Colors.grey[50],
                             ),
-                            items: const [
-                              DropdownMenuItem(value: 'tutor', child: Text('Tutor')),
-                              DropdownMenuItem(value: 'veterinario', child: Text('Veterinário')),
-                              DropdownMenuItem(value: 'lojista', child: Text('Lojista')),
-                            ],
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedUserType = value!;
-                              });
-                            },
                           ),
                           const SizedBox(height: 16),
 
@@ -192,6 +210,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             controller: _nameController,
                             decoration: InputDecoration(
                               labelText: 'Nome',
+                              hintText: 'Ex: João da Silva',
                               prefixIcon: const Icon(Icons.person),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -202,6 +221,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'Por favor, insira seu nome';
+                              }
+                              if (!RegExp(r"^[A-Za-zÀ-ÿ'\-\s]{3,}$").hasMatch(value)) {
+                                return 'Nome deve ter pelo menos 3 letras. Ex: João da Silva';
                               }
                               return null;
                             },
@@ -214,6 +236,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             keyboardType: TextInputType.emailAddress,
                             decoration: InputDecoration(
                               labelText: 'Email',
+                              hintText: 'Ex: joao@email.com',
                               prefixIcon: const Icon(Icons.email),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -225,8 +248,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               if (value == null || value.isEmpty) {
                                 return 'Por favor, insira seu email';
                               }
-                              if (!value.contains('@')) {
-                                return 'Por favor, insira um email válido';
+                              if (!RegExp(r'^[\w\-.]+@([\w-]+\.)+[\w-]{2,}$').hasMatch(value)) {
+                                return 'Digite um email válido. Ex: joao@email.com';
                               }
                               return null;
                             },
@@ -239,12 +262,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             obscureText: _obscurePassword,
                             decoration: InputDecoration(
                               labelText: 'Senha',
+                              hintText: 'Mínimo 6 caracteres',
                               prefixIcon: const Icon(Icons.lock),
                               suffixIcon: IconButton(
                                 icon: Icon(
-                                  _obscurePassword
-                                      ? Icons.visibility
-                                      : Icons.visibility_off,
+                                  _obscurePassword ? Icons.visibility : Icons.visibility_off,
                                 ),
                                 onPressed: () {
                                   setState(() {
@@ -262,7 +284,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               if (value == null || value.isEmpty) {
                                 return 'Por favor, insira sua senha';
                               }
-                              if (value.length < 6) {
+                              if (!RegExp(r'^.{6,}$').hasMatch(value)) {
                                 return 'A senha deve ter pelo menos 6 caracteres';
                               }
                               return null;
@@ -273,9 +295,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           // Telefone
                           TextFormField(
                             controller: _phoneController,
+                            inputFormatters: [_phoneFormatter],
                             keyboardType: TextInputType.phone,
                             decoration: InputDecoration(
                               labelText: 'Telefone',
+                              hintText: '(84) 98888-5496',
                               prefixIcon: const Icon(Icons.phone),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -283,6 +307,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               filled: true,
                               fillColor: Colors.grey[50],
                             ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Por favor, insira seu telefone';
+                              }
+                              if (!_phoneFormatter.isFill()) {
+                                return 'Telefone deve estar no formato (84) 98888-5496';
+                              }
+                              return null;
+                            },
                           ),
                           const SizedBox(height: 16),
 
@@ -291,6 +324,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             controller: _locationController,
                             decoration: InputDecoration(
                               labelText: 'Localização',
+                              hintText: 'Ex: Fortaleza, CE',
                               prefixIcon: const Icon(Icons.location_on),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -298,6 +332,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               filled: true,
                               fillColor: Colors.grey[50],
                             ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Por favor, insira sua localização';
+                              }
+                              if (!RegExp(r'^[A-Za-zÀ-ÿ0-9,\s-]{2,}$').hasMatch(value)) {
+                                return 'Ex: Fortaleza, CE';
+                              }
+                              return null;
+                            },
                           ),
                           const SizedBox(height: 16),
 
@@ -305,8 +348,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           if (_selectedUserType == 'veterinario') ...[
                             TextFormField(
                               controller: _crmvController,
+                              inputFormatters: [_crmvFormatter],
                               decoration: InputDecoration(
                                 labelText: 'CRMV',
+                                hintText: 'Ex: SP-12345',
                                 prefixIcon: const Icon(Icons.medical_services),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
@@ -318,6 +363,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 if (value == null || value.isEmpty) {
                                   return 'Por favor, insira seu CRMV';
                                 }
+                                if (!_crmvFormatter.isFill()) {
+                                  return 'CRMV deve ser como SP-12345';
+                                }
                                 return null;
                               },
                             ),
@@ -328,8 +376,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           if (_selectedUserType == 'lojista') ...[
                             TextFormField(
                               controller: _cnpjController,
+                              inputFormatters: [_cnpjFormatter],
                               decoration: InputDecoration(
                                 labelText: 'CNPJ',
+                                hintText: 'Ex: 12.345.678/0001-99',
                                 prefixIcon: const Icon(Icons.business),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
@@ -341,6 +391,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 if (value == null || value.isEmpty) {
                                   return 'Por favor, insira o CNPJ';
                                 }
+                                if (!_cnpjFormatter.isFill()) {
+                                  return 'CNPJ deve ser como 12.345.678/0001-99';
+                                }
                                 return null;
                               },
                             ),
@@ -349,6 +402,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               controller: _responsibleNameController,
                               decoration: InputDecoration(
                                 labelText: 'Nome do Responsável',
+                                hintText: 'Ex: Maria Oliveira',
                                 prefixIcon: const Icon(Icons.person),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
@@ -360,6 +414,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 if (value == null || value.isEmpty) {
                                   return 'Por favor, insira o nome do responsável';
                                 }
+                                if (!RegExp(r"^[A-Za-zÀ-ÿ'\-\s]{3,}$").hasMatch(value)) {
+                                  return 'Nome do responsável deve ter pelo menos 3 letras. Ex: Maria Oliveira';
+                                }
                                 return null;
                               },
                             ),
@@ -368,6 +425,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               controller: _storeTypeController,
                               decoration: InputDecoration(
                                 labelText: 'Tipo de Loja',
+                                hintText: 'Ex: Petshop',
                                 prefixIcon: const Icon(Icons.store),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
@@ -379,6 +437,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 if (value == null || value.isEmpty) {
                                   return 'Por favor, insira o tipo de loja';
                                 }
+                                if (!RegExp(r'^[A-Za-zÀ-ÿ\s]{3,}$').hasMatch(value)) {
+                                  return 'Tipo de loja deve ter pelo menos 3 letras. Ex: Petshop';
+                                }
                                 return null;
                               },
                             ),
@@ -387,6 +448,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               controller: _operatingHoursController,
                               decoration: InputDecoration(
                                 labelText: 'Horário de Funcionamento',
+                                hintText: 'Ex: Segunda a Sexta, 8h às 18h',
                                 prefixIcon: const Icon(Icons.access_time),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),

@@ -75,6 +75,7 @@ file:///home/pedro/.pub-cache/hosted/pub.dev/json_annotation-4.9.0/lib/src/json_
 file:///home/pedro/.pub-cache/hosted/pub.dev/json_annotation-4.9.0/lib/src/json_serializable.dart
 file:///home/pedro/.pub-cache/hosted/pub.dev/json_annotation-4.9.0/lib/src/json_serializable.g.dart
 file:///home/pedro/.pub-cache/hosted/pub.dev/json_annotation-4.9.0/lib/src/json_value.dart
+file:///home/pedro/.pub-cache/hosted/pub.dev/mask_text_input_formatter-2.9.0/lib/mask_text_input_formatter.dart
 file:///home/pedro/.pub-cache/hosted/pub.dev/material_color_utilities-0.11.1/lib/blend/blend.dart
 file:///home/pedro/.pub-cache/hosted/pub.dev/material_color_utilities-0.11.1/lib/contrast/contrast.dart
 file:///home/pedro/.pub-cache/hosted/pub.dev/material_color_utilities-0.11.1/lib/dislike/dislike_analyzer.dart
@@ -400,8 +401,6 @@ file:///home/pedro/.pub-cache/hosted/pub.dev/web-1.1.1/lib/web.dart
 file:///home/pedro/a3hoje/petconnect-frontend/.dart_tool/flutter_build/d8e7304f9926cf4574aa520d57df5e3c/app.dill
 file:///home/pedro/a3hoje/petconnect-frontend/.dart_tool/flutter_build/d8e7304f9926cf4574aa520d57df5e3c/main.dart
 file:///home/pedro/a3hoje/petconnect-frontend/.dart_tool/flutter_build/d8e7304f9926cf4574aa520d57df5e3c/web_plugin_registrant.dart
-file:///home/pedro/a3hoje/petconnect-frontend/lib/core/api/api_client.dart
-file:///home/pedro/a3hoje/petconnect-frontend/lib/core/models/user.dart
 file:///home/pedro/a3hoje/petconnect-frontend/lib/features/admin/admin_home_screen.dart
 file:///home/pedro/a3hoje/petconnect-frontend/lib/features/auth/login_screen.dart
 file:///home/pedro/a3hoje/petconnect-frontend/lib/features/auth/register_screen.dart

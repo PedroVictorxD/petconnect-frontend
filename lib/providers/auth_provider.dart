@@ -81,7 +81,8 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       User? createdUser;
-      
+      String? createdToken;
+      // Supondo que o backend retorne token e user, ajuste conforme necessário
       switch (userType) {
         case 'tutor':
           createdUser = await ApiService.createTutor(user);
@@ -99,6 +100,15 @@ class AuthProvider extends ChangeNotifier {
 
       if (createdUser != null) {
         _currentUser = createdUser;
+        _userType = userType;
+        // Se o backend retornar token, salve aqui também
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('currentUser', json.encode(_currentUser!.toJson()));
+        await prefs.setString('userType', _userType!);
+        // Se houver token, salve também
+        if (_token != null) {
+          await prefs.setString('token', _token!);
+        }
         _isLoading = false;
         notifyListeners();
         return true;

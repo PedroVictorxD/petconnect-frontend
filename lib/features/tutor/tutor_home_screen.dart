@@ -32,6 +32,8 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
   String _calculatorLifeStage = 'Adulto';
   String _calculatorActivityLevel = 'Médio';
   double? _dailyFoodAmount;
+  Pet? _selectedPet; // Pet selecionado para cálculo
+  bool _useSelectedPet = false; // Se deve usar pet selecionado ou dados manuais
 
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -195,34 +197,82 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
     ));
   }
 
+  // Método para selecionar um pet para cálculo
+  void _selectPetForCalculation(Pet pet) {
+    setState(() {
+      _selectedPet = pet;
+      _useSelectedPet = true;
+      _calculatorPetType = pet.type;
+      _calculatorWeightController.text = pet.weight.toString();
+      _calculatorActivityLevel = pet.activityLevel ?? 'Médio';
+      
+      // Determinar fase da vida baseada na idade
+      if (pet.age < 1) {
+        _calculatorLifeStage = 'Filhote';
+      } else if (pet.age > 7) {
+        _calculatorLifeStage = 'Idoso';
+      } else {
+        _calculatorLifeStage = 'Adulto';
+      }
+    });
+    
+    // Calcular automaticamente quando um pet é selecionado
+    _calculateFood();
+  }
+
   void _calculateFood() {
-    final weight = double.tryParse(_calculatorWeightController.text);
-    if (weight == null || weight <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Por favor, insira um peso válido.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
+    double weight;
+    String petType;
+    String lifeStage;
+    String activityLevel;
+
+    if (_useSelectedPet && _selectedPet != null) {
+      // Usar dados do pet selecionado
+      weight = _selectedPet!.weight;
+      petType = _selectedPet!.type;
+      activityLevel = _selectedPet!.activityLevel ?? 'Médio';
+      
+      // Determinar fase da vida baseada na idade
+      if (_selectedPet!.age < 1) {
+        lifeStage = 'Filhote';
+      } else if (_selectedPet!.age > 7) {
+        lifeStage = 'Idoso';
+      } else {
+        lifeStage = 'Adulto';
+      }
+    } else {
+      // Usar dados manuais
+      weight = double.tryParse(_calculatorWeightController.text) ?? 0;
+      if (weight <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Por favor, insira um peso válido.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      petType = _calculatorPetType;
+      lifeStage = _calculatorLifeStage;
+      activityLevel = _calculatorActivityLevel;
     }
 
     // Fórmulas de Necessidade Energética de Repouso (NER) variam por espécie
     // Cães: NER = 70 * (peso^0.75)
     // Gatos: NER = 70 * (peso^0.67)
-    final exponent = _calculatorPetType == 'Cachorro' ? 0.75 : 0.67;
+    final exponent = petType == 'Cachorro' ? 0.75 : 0.67;
     final rer = 70 * pow(weight, exponent);
 
     // Fatores de Necessidade Energética Diária (NED)
     double multiplier = 1.0; 
 
-    if (_calculatorPetType == 'Cachorro') {
-      switch (_calculatorLifeStage) {
+    if (petType == 'Cachorro') {
+      switch (lifeStage) {
         case 'Filhote':
           multiplier = 3.0; // Varia muito com a idade, 3.0 é uma média inicial
           break;
         case 'Adulto':
-          switch (_calculatorActivityLevel) {
+          switch (activityLevel) {
             case 'Baixo': multiplier = 1.4; break;
             case 'Médio': multiplier = 1.6; break;
             case 'Alto': multiplier = 1.8; break;
@@ -233,12 +283,12 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
           break;
       }
     } else { // Gato
-      switch (_calculatorLifeStage) {
+      switch (lifeStage) {
         case 'Filhote':
           multiplier = 2.5;
           break;
         case 'Adulto':
-           switch (_calculatorActivityLevel) {
+           switch (activityLevel) {
             case 'Baixo': multiplier = 1.2; break; // Gato castrado/interno
             case 'Médio': multiplier = 1.4; break; // Ativo
             case 'Alto': multiplier = 1.6; break; // Muito ativo
@@ -287,7 +337,7 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
               children: [
                 _buildHeader(authProvider),
                 const SizedBox(height: 24),
-                _buildFoodCalculator(),
+                _buildFoodCalculator(dataProvider),
                 const SizedBox(height: 8),
                 _buildSectionToggle(dataProvider),
                 const SizedBox(height: 8),
@@ -337,7 +387,7 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
     );
   }
 
-  Widget _buildFoodCalculator() {
+  Widget _buildFoodCalculator(DataProvider dataProvider) {
     return Card(
       elevation: _isCalculatorExpanded ? 6 : 2,
       shadowColor: _isCalculatorExpanded ? const Color(0xFF667eea).withOpacity(0.5) : Colors.black12,
@@ -354,42 +404,176 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
             child: Column(
               children: [
                 const SizedBox(height: 8),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: _calculatorPetType,
-                        decoration: const InputDecoration(
-                          labelText: 'Tipo de Pet',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: ['Cachorro', 'Gato']
-                            .map((l) => DropdownMenuItem(value: l, child: Text(l)))
-                            .toList(),
-                        onChanged: (v) => setState(() => _calculatorPetType = v!),
-                      ),
+                
+                // Seção de seleção de pet
+                if (dataProvider.pets.isNotEmpty) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.withOpacity(0.3)),
                     ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.pets, color: Colors.blue, size: 20),
+                            const SizedBox(width: 8),
+                            const Text('Seus Pets Cadastrados', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: dataProvider.pets.map((pet) {
+                            final isSelected = _selectedPet?.id == pet.id;
+                            return GestureDetector(
+                              onTap: () => _selectPetForCalculation(pet),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: isSelected ? const Color(0xFF667eea) : Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: isSelected ? const Color(0xFF667eea) : Colors.grey.shade300,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      pet.type == 'Cachorro' ? Icons.pets : Icons.cruelty_free,
+                                      size: 16,
+                                      color: isSelected ? Colors.white : Colors.grey.shade700,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      pet.name,
+                                      style: TextStyle(
+                                        color: isSelected ? Colors.white : Colors.grey.shade700,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: _useSelectedPet && _selectedPet != null,
+                              onChanged: (value) {
+                                setState(() {
+                                  _useSelectedPet = value ?? false;
+                                  if (!_useSelectedPet) {
+                                    _selectedPet = null;
+                                  }
+                                });
+                              },
+                            ),
+                            const Text('Usar dados do pet selecionado'),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // Seção de dados manuais (só mostra se não usar pet selecionado)
+                if (!_useSelectedPet || _selectedPet == null) ...[
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: _calculatorPetType,
+                          decoration: const InputDecoration(
+                            labelText: 'Tipo de Pet',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: ['Cachorro', 'Gato']
+                              .map((l) => DropdownMenuItem(value: l, child: Text(l)))
+                              .toList(),
+                          onChanged: (v) => setState(() => _calculatorPetType = v!),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextFormField(
+                          controller: _calculatorWeightController,
+                          decoration: const InputDecoration(
+                            labelText: 'Peso (kg)',
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.line_weight)
+                          ),
+                          keyboardType: TextInputType.number
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(children: [
+                    Expanded(child: DropdownButtonFormField<String>(value: _calculatorLifeStage, decoration: const InputDecoration(labelText: 'Fase da Vida', border: OutlineInputBorder()), items: ['Filhote', 'Adulto', 'Idoso'].map((l) => DropdownMenuItem(value: l, child: Text(l))).toList(), onChanged: (v) => setState(() => _calculatorLifeStage = v!))),
                     const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _calculatorWeightController,
-                        decoration: const InputDecoration(
-                          labelText: 'Peso (kg)',
-                          border: OutlineInputBorder(),
-                          prefixIcon: Icon(Icons.line_weight)
-                        ),
-                        keyboardType: TextInputType.number
-                      ),
+                    Expanded(child: DropdownButtonFormField<String>(value: _calculatorActivityLevel, decoration: const InputDecoration(labelText: 'Nível de Atividade', border: OutlineInputBorder()), items: ['Baixo', 'Médio', 'Alto'].map((l) => DropdownMenuItem(value: l, child: Text(l))).toList(), onChanged: (v) => setState(() => _calculatorActivityLevel = v!))),
+                  ]),
+                ],
+
+                // Se usar pet selecionado, mostrar informações do pet
+                if (_useSelectedPet && _selectedPet != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green.withOpacity(0.3)),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(children: [
-                  Expanded(child: DropdownButtonFormField<String>(value: _calculatorLifeStage, decoration: const InputDecoration(labelText: 'Fase da Vida', border: OutlineInputBorder()), items: ['Filhote', 'Adulto', 'Idoso'].map((l) => DropdownMenuItem(value: l, child: Text(l))).toList(), onChanged: (v) => setState(() => _calculatorLifeStage = v!))),
-                  const SizedBox(width: 12),
-                  Expanded(child: DropdownButtonFormField<String>(value: _calculatorActivityLevel, decoration: const InputDecoration(labelText: 'Nível de Atividade', border: OutlineInputBorder()), items: ['Baixo', 'Médio', 'Alto'].map((l) => DropdownMenuItem(value: l, child: Text(l))).toList(), onChanged: (v) => setState(() => _calculatorActivityLevel = v!))),
-                ]),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              _selectedPet!.type == 'Cachorro' ? Icons.pets : Icons.cruelty_free,
+                              color: Colors.green,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Dados do ${_selectedPet!.name}',
+                              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildPetInfoCard('Peso', '${_selectedPet!.weight} kg', Icons.line_weight),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildPetInfoCard('Idade', '${_selectedPet!.age} anos', Icons.cake),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildPetInfoCard('Atividade', _selectedPet!.activityLevel ?? 'Médio', Icons.fitness_center),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
                 const SizedBox(height: 20),
                 ElevatedButton.icon(
                   onPressed: _calculateFood,
@@ -402,7 +586,21 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-                    child: Text('Recomendação diária: ${_dailyFoodAmount!.toStringAsFixed(0)} gramas', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green)),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Recomendação diária: ${_dailyFoodAmount!.toStringAsFixed(0)} gramas',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
+                        ),
+                        if (_selectedPet != null) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Para ${_selectedPet!.name}',
+                            style: TextStyle(fontSize: 14, color: Colors.green.shade700),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                 ]
               ],
@@ -412,7 +610,32 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
       ),
     );
   }
-  
+
+  Widget _buildPetInfoCard(String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.green.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 16, color: Colors.green),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.green),
+          ),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 12, color: Colors.green),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSectionToggle(DataProvider dataProvider) {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 16.0),
