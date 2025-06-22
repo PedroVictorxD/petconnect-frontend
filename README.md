@@ -1,84 +1,172 @@
 # PetConnect Frontend
 
-Frontend Flutter Web para o sistema PetConnect, uma plataforma completa para gestão de pets, produtos e serviços veterinários.
+## 📋 Descrição
 
-## 🚀 Funcionalidades
+O PetConnect Frontend é uma aplicação web desenvolvida em Flutter que fornece uma interface moderna e intuitiva para o sistema PetConnect. Permite que tutores, veterinários, lojistas e administradores gerenciem seus respectivos recursos de forma eficiente e amigável.
 
-### Autenticação e Usuários.
-- **Login/Registro**: Sistema completo de autenticação
-- **Tipos de Usuário**: 
-  - **Tutor**: Gerencia seus pets e visualiza produtos/serviços
-  - **Lojista**: Cadastra e gerencia produtos
-  - **Veterinário**: Cadastra e gerencia serviços veterinários
-  - **Administrador**: Visualiza estatísticas e dados do sistema
+## 🏗️ Arquitetura
 
-### Gestão de Pets (Tutores)
-- ✅ Cadastro de pets com informações completas
-- ✅ Visualização em cards organizados
-- ✅ Dados: nome, tipo, peso, idade, raça, nível de atividade, observações
+### Tecnologias Utilizadas
+- **Flutter 3.8.0**
+- **Dart 3.8.0**
+- **Provider** (Gerenciamento de Estado)
+- **HTTP** (Comunicação com API)
+- **Shared Preferences** (Armazenamento Local)
+- **JSON Serialization** (Serialização de Dados)
 
-### Gestão de Produtos (Lojistas)
-- ✅ Cadastro de produtos com preços e descrições
-- ✅ Visualização em cards com informações do lojista
-- ✅ Dados: nome, descrição, preço, unidade de medida, localização
-
-### Gestão de Serviços (Veterinários)
-- ✅ Cadastro de serviços veterinários
-- ✅ Visualização em cards com informações do veterinário
-- ✅ Dados: nome, descrição, preço, horário de funcionamento, CRMV
-
-### Dashboard Administrativo
-- ✅ Estatísticas em tempo real
-- ✅ Visualização de todos os pets, produtos e serviços
-- ✅ Controle total do sistema
-
-## 🛠️ Tecnologias Utilizadas
-
-- **Flutter Web**: Framework principal
-- **Provider**: Gerenciamento de estado
-- **HTTP**: Comunicação com API REST
-- **JSON Serialization**: Serialização de dados
-- **Material Design**: Interface moderna e responsiva
-
-## 📦 Estrutura do Projeto
-
+### Estrutura do Projeto
 ```
 lib/
-├── main.dart                 # Ponto de entrada da aplicação
-├── models/                   # Modelos de dados
-│   ├── user.dart
-│   ├── pet.dart
-│   ├── product.dart
-│   └── vet_service.dart
-├── providers/                # Gerenciamento de estado
-│   ├── auth_provider.dart
-│   └── data_provider.dart
-├── services/                 # Serviços de API
-│   └── api_service.dart
-└── features/                 # Funcionalidades organizadas
-    ├── landing/
-    │   └── landing_page.dart
-    ├── auth/
-    │   ├── login_screen.dart
-    │   └── register_screen.dart
-    ├── tutor/
-    │   └── tutor_home_screen.dart
-    ├── lojista/
-    │   └── lojista_home_screen.dart
-    ├── veterinario/
-    │   └── vet_home_screen.dart
-    └── admin/
-        └── admin_home_screen.dart
+├── main.dart                      # Ponto de entrada da aplicação
+├── core/                          # Funcionalidades core
+│   ├── api/
+│   │   └── api_client.dart        # Cliente HTTP base
+│   └── models/                    # Modelos de dados
+│       ├── pet.dart
+│       ├── product.dart
+│       ├── user.dart
+│       └── vet_service.dart
+├── features/                      # Funcionalidades específicas
+│   ├── admin/
+│   │   └── admin_home_screen.dart # Tela principal do admin
+│   ├── auth/
+│   │   ├── login_screen.dart      # Tela de login
+│   │   ├── register_screen.dart   # Tela de registro
+│   │   └── user_type_selection.dart # Seleção de tipo de usuário
+│   ├── landing/
+│   │   └── landing_page.dart      # Página inicial
+│   ├── lojista/
+│   │   └── lojista_home_screen.dart # Tela principal do lojista
+│   ├── tutor/
+│   │   └── tutor_home_screen.dart # Tela principal do tutor
+│   └── veterinario/
+│       └── vet_home_screen.dart   # Tela principal do veterinário
+├── providers/                     # Gerenciadores de estado
+│   ├── auth_provider.dart         # Estado de autenticação
+│   └── data_provider.dart         # Estado dos dados
+└── services/                      # Serviços
+    └── api_service.dart           # Serviço de comunicação com API
 ```
 
-## 🚀 Como Executar
+## 🎨 Interface do Usuário
+
+### Design System
+- **Tema:** Material Design 3
+- **Cores principais:**
+  - Primária: `#667eea` (Azul)
+  - Secundária: `#764ba2` (Roxo)
+  - Fundo: Gradiente linear
+- **Tipografia:** Roboto
+- **Ícones:** Material Icons
+
+### Responsividade
+- **Mobile-first** design
+- **Adaptável** para diferentes tamanhos de tela
+- **Orientação** portrait e landscape
+
+## 🔐 Sistema de Autenticação
+
+### Fluxo de Autenticação
+1. **Registro:** Usuário escolhe tipo e preenche dados
+2. **Login:** Email e senha para autenticação
+3. **Token JWT:** Armazenado localmente
+4. **Autorização:** Headers automáticos nas requisições
+
+### Tipos de Usuário
+- **Tutor:** Gerencia pets
+- **Veterinário:** Oferece serviços
+- **Lojista:** Vende produtos
+- **Admin:** Acesso total
+
+## 📱 Telas e Funcionalidades
+
+### Landing Page
+- **Apresentação** do sistema
+- **Call-to-action** para registro/login
+- **Informações** sobre funcionalidades
+
+### Autenticação
+#### Login Screen
+- **Campos:** Email e senha
+- **Validação** em tempo real
+- **Feedback** visual de erros
+- **Lembrar** credenciais
+
+#### Register Screen
+- **Seleção** de tipo de usuário
+- **Campos dinâmicos** baseados no tipo
+- **Validação** completa
+- **Upload** de foto (futuro)
+
+### Telas Principais por Tipo
+
+#### Tutor Home Screen
+- **Dashboard** com estatísticas
+- **Lista** de pets
+- **CRUD** completo de pets
+- **Busca** e filtros
+- **Perfil** do usuário
+
+#### Veterinário Home Screen
+- **Dashboard** com estatísticas
+- **Lista** de serviços
+- **CRUD** completo de serviços
+- **Agenda** (futuro)
+- **Perfil** profissional
+
+#### Lojista Home Screen
+- **Dashboard** com estatísticas
+- **Lista** de produtos
+- **CRUD** completo de produtos
+- **Estoque** (futuro)
+- **Perfil** da loja
+
+#### Admin Home Screen
+- **Dashboard** com estatísticas gerais
+- **Gerenciamento** de usuários
+- **Relatórios** do sistema
+- **Configurações** globais
+
+## 🔧 Configuração
+
+### pubspec.yaml
+```yaml
+name: petconnect_frontend
+environment:
+  sdk: '^3.8.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^1.2.1
+  provider: ^6.1.1
+  shared_preferences: ^2.2.2
+  flutter_secure_storage: ^9.0.0
+  json_annotation: ^4.8.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  json_serializable: ^6.7.1
+  build_runner: ^2.4.7
+```
+
+### Configuração da API
+```dart
+// lib/services/api_service.dart
+static const String baseUrl = 'http://localhost:8080';
+```
+
+## 🚀 Instalação e Execução
 
 ### Pré-requisitos
-- Flutter SDK (versão 3.8.0 ou superior)
-- Dart SDK
-- Backend PetConnect rodando na porta 8080
+- **Flutter SDK** 3.8.0+
+- **Dart SDK** 3.8.0+
+- **Git**
+- **Backend** rodando na porta 8080
 
-### Instalação
+### Passos de Instalação
 
 1. **Clone o repositório**
 ```bash
@@ -91,113 +179,295 @@ cd petconnect-frontend
 flutter pub get
 ```
 
-3. **Gere os arquivos de serialização JSON**
+3. **Gere os arquivos de serialização**
 ```bash
 flutter packages pub run build_runner build
 ```
 
-4. **Execute o projeto**
+4. **Execute a aplicação**
 ```bash
+# Para web
 flutter run -d web-server --web-port 3000
+
+# Para mobile
+flutter run
+
+# Para desktop
+flutter run -d windows  # ou macos, linux
 ```
 
-5. **Acesse no navegador**
+### Verificação da Instalação
+```bash
+# Verificar se tudo está configurado
+flutter doctor
+
+# Executar testes
+flutter test
+
+# Análise de código
+flutter analyze
 ```
-http://localhost:3000
+
+## 📊 Gerenciamento de Estado
+
+### Provider Pattern
+- **AuthProvider:** Estado de autenticação
+- **DataProvider:** Estado dos dados da aplicação
+
+### Estrutura do Estado
+```dart
+class AuthProvider extends ChangeNotifier {
+  User? _currentUser;
+  String? _token;
+  bool _isLoading;
+  String? _error;
+  
+  // Getters e métodos
+}
 ```
 
-## 🔧 Configuração
+## 🔌 Comunicação com API
 
-### Backend
-Certifique-se de que o backend está rodando em `http://localhost:8080`. O frontend está configurado para se comunicar com esta URL por padrão.
-
-### Variáveis de Ambiente
-O projeto usa configurações padrão para desenvolvimento local. Para produção, ajuste a URL da API no arquivo `lib/services/api_service.dart`.
-
-## 📱 Interface do Usuário
-
-### Landing Page
-- Design moderno com gradiente
-- Botões de login e registro
-- Apresentação das funcionalidades
-
-### Login/Registro
-- Formulários responsivos
-- Validação de campos
-- Feedback visual de erros
-
-### Dashboards
-- **Tutor**: Cards de pets, produtos e serviços
-- **Lojista**: Gestão de produtos
-- **Veterinário**: Gestão de serviços
-- **Admin**: Estatísticas e visão geral
-
-## 🔌 Integração com Backend
+### ApiService
+- **Cliente HTTP** centralizado
+- **Interceptors** para tokens
+- **Tratamento** de erros
+- **Cache** local (futuro)
 
 ### Endpoints Utilizados
-- `POST /api/auth/login` - Autenticação
-- `POST /tutores` - Criação de tutores
-- `POST /veterinarios` - Criação de veterinários
-- `POST /lojistas` - Criação de lojistas
-- `POST /admins` - Criação de administradores
-- `GET /api/pets` - Listagem de pets
-- `POST /api/pets` - Criação de pets
-- `GET /api/products` - Listagem de produtos
-- `POST /api/products` - Criação de produtos
-- `GET /api/services` - Listagem de serviços
-- `POST /api/services` - Criação de serviços
+```dart
+// Autenticação
+POST /api/auth/login
+POST /api/auth/register-tutor
+POST /api/auth/register-lojista
+POST /api/auth/register-veterinario
 
-### Modelos de Dados
-Todos os modelos são serializáveis e compatíveis com a API do backend.
+// Pets
+GET /api/pets
+POST /api/pets
+PUT /api/pets/{id}
+DELETE /api/pets/{id}
 
-## 🎨 Design System
+// Produtos
+GET /api/products
+POST /api/products
+PUT /api/products/{id}
+DELETE /api/products/{id}
 
-### Cores Principais
-- **Primária**: `#667eea` (Azul)
-- **Secundária**: `#764ba2` (Roxo)
-- **Gradiente**: Linear gradient entre as cores principais
+// Serviços
+GET /api/services
+POST /api/services
+PUT /api/services/{id}
+DELETE /api/services/{id}
+```
 
-### Componentes
-- Cards com elevação e bordas arredondadas
-- Botões com design consistente
-- Campos de formulário padronizados
-- Ícones Material Design
+## 📱 Modelos de Dados
 
-## 📊 Estado da Aplicação
+### User Model
+```dart
+@JsonSerializable()
+class User {
+  final int? id;
+  final String name;
+  final String email;
+  final String password;
+  final String? phone;
+  final String? location;
+  final String? dtype;
+  final String? crmv;
+  final String? cnpj;
+  final String? responsibleName;
+  final String? storeType;
+  final String? operatingHours;
+  
+  // Getters para tipo de usuário
+  bool get isVeterinario => dtype == 'Veterinario';
+  bool get isLojista => dtype == 'Lojista';
+  bool get isTutor => dtype == 'Tutor';
+  bool get isAdmin => dtype == 'Admin';
+}
+```
 
-### AuthProvider
-- Gerenciamento de autenticação
-- Estado do usuário logado
-- Funções de login/logout
+### Pet Model
+```dart
+@JsonSerializable()
+class Pet {
+  final int? id;
+  final String name;
+  final String type;
+  final String? breed;
+  final int? age;
+  final double? weight;
+  final String? activityLevel;
+  final String? notes;
+  final String? photoUrl;
+  final User? tutor;
+}
+```
 
-### DataProvider
-- Dados de pets, produtos e serviços
-- Funções de CRUD
-- Estado de loading e erros
+## 🎯 Funcionalidades Principais
+
+### CRUD de Pets (Tutor)
+- **Criar** novo pet
+- **Visualizar** lista de pets
+- **Editar** informações
+- **Excluir** pet
+- **Upload** de foto (futuro)
+
+### CRUD de Produtos (Lojista)
+- **Criar** novo produto
+- **Visualizar** catálogo
+- **Editar** informações
+- **Excluir** produto
+- **Upload** de imagem (futuro)
+
+### CRUD de Serviços (Veterinário)
+- **Criar** novo serviço
+- **Visualizar** serviços oferecidos
+- **Editar** informações
+- **Excluir** serviço
+- **Agenda** (futuro)
+
+### Gerenciamento de Usuários (Admin)
+- **Visualizar** todos os usuários
+- **Editar** informações
+- **Excluir** usuários
+- **Estatísticas** do sistema
 
 ## 🔒 Segurança
 
-- Validação de formulários no frontend
-- Tratamento de erros de API
-- Feedback visual para o usuário
-- Logout automático
+### Armazenamento Seguro
+- **Shared Preferences** para dados não sensíveis
+- **Flutter Secure Storage** para tokens (futuro)
+- **Criptografia** local (futuro)
 
-## 🚀 Deploy
+### Validação de Dados
+- **Validação** em tempo real
+- **Sanitização** de inputs
+- **Feedback** visual de erros
 
-### Build para Produção
+### Autenticação
+- **JWT** tokens
+- **Expiração** automática
+- **Refresh** tokens (futuro)
+
+## 📱 Responsividade e UX
+
+### Design Responsivo
+- **Breakpoints** definidos
+- **Layout** adaptativo
+- **Navegação** intuitiva
+
+### Experiência do Usuário
+- **Loading** states
+- **Error** handling
+- **Success** feedback
+- **Animations** suaves
+
+### Acessibilidade
+- **Semantic** labels
+- **Screen** readers
+- **Keyboard** navigation
+- **High** contrast (futuro)
+
+## 🧪 Testes
+
+### Testes Unitários
+```bash
+flutter test test/unit/
+```
+
+### Testes de Widget
+```bash
+flutter test test/widget/
+```
+
+### Testes de Integração
+```bash
+flutter test test/integration/
+```
+
+## 📦 Build e Deploy
+
+### Build para Web
 ```bash
 flutter build web
 ```
 
-### Servir Arquivos Estáticos
-Os arquivos gerados em `build/web/` podem ser servidos por qualquer servidor web estático.
+### Build para Mobile
+```bash
+# Android
+flutter build apk
+flutter build appbundle
 
-## 📝 Logs e Debug
+# iOS
+flutter build ios
+```
 
-O projeto inclui logs detalhados para debug:
-- Logs de requisições HTTP
-- Logs de erros de autenticação
-- Logs de operações CRUD
+### Deploy
+- **Web:** Servidor web estático
+- **Mobile:** Google Play / App Store
+- **Desktop:** Distribuição direta
+
+## 🐛 Troubleshooting
+
+### Problemas Comuns
+
+1. **Erro de dependências**
+   ```bash
+   flutter clean
+   flutter pub get
+   ```
+
+2. **Erro de compilação**
+   ```bash
+   flutter analyze
+   flutter packages pub run build_runner build
+   ```
+
+3. **Erro de conexão com API**
+   - Verifique se o backend está rodando
+   - Confirme URL no `api_service.dart`
+   - Verifique CORS no backend
+
+4. **Erro de CORS**
+   - Configure CORS no backend
+   - Use proxy no desenvolvimento
+
+### Logs de Debug
+```bash
+flutter run --verbose
+```
+
+## 📝 Changelog
+
+### v1.0.0 (2025-06-21)
+- ✅ Interface completa para todos os tipos de usuário
+- ✅ Sistema de autenticação integrado
+- ✅ CRUD completo para pets, produtos e serviços
+- ✅ Design responsivo e moderno
+- ✅ Gerenciamento de estado com Provider
+- ✅ Comunicação com API REST
+- ✅ Documentação completa
+
+## 🔮 Roadmap
+
+### Próximas Funcionalidades
+- [ ] Upload de imagens
+- [ ] Chat entre usuários
+- [ ] Sistema de agendamento
+- [ ] Notificações push
+- [ ] Modo offline
+- [ ] PWA (Progressive Web App)
+- [ ] Tema escuro
+- [ ] Internacionalização
+
+### Melhorias Técnicas
+- [ ] Testes automatizados
+- [ ] CI/CD pipeline
+- [ ] Performance optimization
+- [ ] Code splitting
+- [ ] Lazy loading
 
 ## 🤝 Contribuição
 
@@ -207,14 +477,43 @@ O projeto inclui logs detalhados para debug:
 4. Push para a branch
 5. Abra um Pull Request
 
+### Padrões de Código
+- **Dart:** Effective Dart guidelines
+- **Flutter:** Material Design guidelines
+- **Commits:** Conventional Commits
+- **Documentação:** DartDoc
+
 ## 📄 Licença
 
-Este projeto está sob a licença MIT.
+Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para mais detalhes.
 
-## 🆘 Suporte
+## 📞 Suporte
 
-Para suporte, entre em contato através dos canais oficiais do projeto.
+Para suporte e dúvidas:
+- **Email:** suporte@petconnect.com
+- **Issues:** GitHub Issues
+- **Documentação:** Este README
+
+## 🎨 Screenshots
+
+### Landing Page
+![Landing Page](screenshots/landing.png)
+
+### Login Screen
+![Login Screen](screenshots/login.png)
+
+### Tutor Dashboard
+![Tutor Dashboard](screenshots/tutor-dashboard.png)
+
+### Veterinário Dashboard
+![Veterinário Dashboard](screenshots/vet-dashboard.png)
+
+### Lojista Dashboard
+![Lojista Dashboard](screenshots/lojista-dashboard.png)
+
+### Admin Dashboard
+![Admin Dashboard](screenshots/admin-dashboard.png)
 
 ---
 
-**PetConnect** - Conectando pets, tutores e profissionais! 🐾 
+**Desenvolvido com ❤️ pela equipe PetConnect** 

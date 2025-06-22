@@ -109,19 +109,19 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
       context: context,
       builder: (context) => _buildFormDialog(
         title: 'Editar Serviço',
-        onSave: () => _updateService(service.id!),
+        onSave: () => _updateService(service),
       ),
     );
   }
 
-  Future<void> _updateService(int serviceId) async {
+  Future<void> _updateService(VetService service) async {
     if (!_formKey.currentState!.validate()) return;
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final dataProvider = Provider.of<DataProvider>(context, listen: false);
 
-    final service = VetService(
-      id: serviceId,
+    final updatedService = VetService(
+      id: service.id,
       name: _nameController.text,
       description: _descriptionController.text,
       price: double.parse(_priceController.text.replaceAll(',', '.')),
@@ -133,7 +133,7 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
       ownerCrmv: authProvider.currentUser?.crmv,
     );
 
-    final success = await dataProvider.updateVetService(serviceId, service);
+    final success = await dataProvider.updateVetService(updatedService);
 
     if (mounted) {
       Navigator.pop(context);

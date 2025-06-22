@@ -113,19 +113,19 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
       context: context,
       builder: (context) => _buildFormDialog(
         title: 'Editar Produto',
-        onSave: () => _updateProduct(product.id!),
+        onSave: () => _updateProduct(product),
       ),
     );
   }
 
-  Future<void> _updateProduct(int productId) async {
+  Future<void> _updateProduct(Product product) async {
     if (!_formKey.currentState!.validate()) return;
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final dataProvider = Provider.of<DataProvider>(context, listen: false);
 
-    final product = Product(
-      id: productId,
+    final updatedProduct = Product(
+      id: product.id,
       name: _nameController.text,
       description: _descriptionController.text,
       price: double.parse(_priceController.text.replaceAll(',', '.')),
@@ -137,7 +137,7 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
       ownerPhone: authProvider.currentUser?.phone,
     );
 
-    final success = await dataProvider.updateProduct(productId, product);
+    final success = await dataProvider.updateProduct(updatedProduct);
 
     if (mounted) {
       Navigator.pop(context);

@@ -66,12 +66,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // Converte o tipo de usuário para o formato esperado pelo backend (primeira letra maiúscula)
+    final String dtype = _selectedUserType[0].toUpperCase() + _selectedUserType.substring(1);
+
     final user = User(
       name: _nameController.text.trim(),
       email: _emailController.text.trim(),
       password: _passwordController.text,
       phone: _phoneController.text.trim(),
       location: _locationController.text.trim(),
+      dtype: dtype,
       crmv: _selectedUserType == 'veterinario' ? _crmvController.text.trim() : null,
       cnpj: _selectedUserType == 'lojista' ? _cnpjController.text.trim() : null,
       responsibleName: _selectedUserType == 'lojista' ? _responsibleNameController.text.trim() : null,
