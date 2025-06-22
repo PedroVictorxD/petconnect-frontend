@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:math';
+import 'dart:ui';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../../models/pet.dart';
+import '../../models/vet_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_provider.dart';
-import '../../models/vet_service.dart';
 
 class VetHomeScreen extends StatefulWidget {
   const VetHomeScreen({super.key});
@@ -12,73 +17,104 @@ class VetHomeScreen extends StatefulWidget {
 }
 
 class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateMixin {
-  final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _priceController = TextEditingController();
-  final _operatingHoursController = TextEditingController();
+  // Formulário de Serviço
+  final _serviceFormKey = GlobalKey<FormState>();
+  final _serviceNameController = TextEditingController();
+  final _serviceDescriptionController = TextEditingController();
+  final _servicePriceController = TextEditingController();
+  final _serviceImageUrlController = TextEditingController();
+  final _serviceOperatingHoursController = TextEditingController();
 
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
+  // UI
+  String _selectedSection = 'services';
+
+  // Animação do Fundo
+  AnimationController? _pawAnimationController;
+  final List<_Paw> _paws = [];
+  final Random _random = Random();
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
-    _animationController.forward();
+    _initializeAnimations();
+    _loadData();
+  }
 
+  void _initializeAnimations() {
+    _pawAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 3000),
+      vsync: this,
+    )..repeat();
+
+    // Gerar patinhas flutuantes
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final size = MediaQuery.of(context).size;
+      for (int i = 0; i < 20; i++) {
+        _paws.add(_Paw(
+          position: Offset(
+            _random.nextDouble() * size.width,
+            _random.nextDouble() * size.height,
+          ),
+          scale: _random.nextDouble() * 0.5 + 0.3,
+          opacity: _random.nextDouble() * 0.3 + 0.1,
+          speed: _random.nextDouble() * 2 + 1,
+        ));
+      }
+    });
+  }
+
+  void _loadData() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       final dataProvider = Provider.of<DataProvider>(context, listen: false);
       dataProvider.loadVetServices();
+      dataProvider.loadPets();
     });
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _descriptionController.dispose();
-    _priceController.dispose();
-    _operatingHoursController.dispose();
-    _animationController.dispose();
+    _serviceNameController.dispose();
+    _serviceDescriptionController.dispose();
+    _servicePriceController.dispose();
+    _serviceImageUrlController.dispose();
+    _serviceOperatingHoursController.dispose();
+    _pawAnimationController?.dispose();
     super.dispose();
   }
 
   void _clearForm() {
-    _formKey.currentState?.reset();
-    _nameController.clear();
-    _descriptionController.clear();
-    _priceController.clear();
-    _operatingHoursController.clear();
+    _serviceFormKey.currentState?.reset();
+    _serviceNameController.clear();
+    _serviceDescriptionController.clear();
+    _servicePriceController.clear();
+    _serviceImageUrlController.clear();
+    _serviceOperatingHoursController.clear();
   }
+
+  // --- MÉTODOS DE CRUD DE SERVIÇO ---
 
   void _showAddServiceDialog() {
     _clearForm();
-    showDialog(
-      context: context,
-      builder: (context) => _buildFormDialog(
-        title: 'Adicionar Novo Serviço',
-        onSave: _addService,
-      ),
+    _showAnimatedDialog(
+      title: 'Adicionar Novo Serviço',
+      onSave: _addService,
     );
   }
 
   Future<void> _addService() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_serviceFormKey.currentState!.validate()) return;
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final dataProvider = Provider.of<DataProvider>(context, listen: false);
 
     final service = VetService(
-      name: _nameController.text,
-      description: _descriptionController.text,
-      price: double.parse(_priceController.text.replaceAll(',', '.')),
-      operatingHours: _operatingHoursController.text,
+      name: _serviceNameController.text,
+      description: _serviceDescriptionController.text,
+      price: double.parse(_servicePriceController.text.replaceAll(',', '.')),
+      imageUrl: _serviceImageUrlController.text,
+      operatingHours: _serviceOperatingHoursController.text,
       ownerId: authProvider.currentUser?.id,
       ownerName: authProvider.currentUser?.name,
       ownerLocation: authProvider.currentUser?.location,
@@ -91,41 +127,52 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
     if (mounted) {
       Navigator.pop(context);
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Serviço adicionado com sucesso!'), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Serviço adicionado com sucesso!'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(dataProvider.error ?? 'Erro ao adicionar serviço'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(dataProvider.error ?? 'Erro ao adicionar serviço'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
 
   void _showEditServiceDialog(VetService service) {
     _clearForm();
-    _nameController.text = service.name;
-    _descriptionController.text = service.description ?? '';
-    _priceController.text = service.price.toString().replaceAll('.', ',');
-    _operatingHoursController.text = service.operatingHours ?? '';
+    _serviceNameController.text = service.name;
+    _serviceDescriptionController.text = service.description ?? '';
+    _servicePriceController.text = service.price.toString().replaceAll('.', ',');
+    _serviceImageUrlController.text = service.imageUrl ?? '';
+    _serviceOperatingHoursController.text = service.operatingHours ?? '';
 
-    showDialog(
-      context: context,
-      builder: (context) => _buildFormDialog(
-        title: 'Editar Serviço',
-        onSave: () => _updateService(service),
-      ),
+    _showAnimatedDialog(
+      title: 'Editar Serviço',
+      onSave: () => _updateService(service),
     );
   }
 
   Future<void> _updateService(VetService service) async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_serviceFormKey.currentState!.validate()) return;
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final dataProvider = Provider.of<DataProvider>(context, listen: false);
 
     final updatedService = VetService(
       id: service.id,
-      name: _nameController.text,
-      description: _descriptionController.text,
-      price: double.parse(_priceController.text.replaceAll(',', '.')),
-      operatingHours: _operatingHoursController.text,
+      name: _serviceNameController.text,
+      description: _serviceDescriptionController.text,
+      price: double.parse(_servicePriceController.text.replaceAll(',', '.')),
+      imageUrl: _serviceImageUrlController.text,
+      operatingHours: _serviceOperatingHoursController.text,
       ownerId: authProvider.currentUser?.id,
       ownerName: authProvider.currentUser?.name,
       ownerLocation: authProvider.currentUser?.location,
@@ -138,9 +185,21 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
     if (mounted) {
       Navigator.pop(context);
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Serviço atualizado com sucesso!'), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Serviço atualizado com sucesso!'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(dataProvider.error ?? 'Erro ao atualizar serviço'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(dataProvider.error ?? 'Erro ao atualizar serviço'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
@@ -149,8 +208,10 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Confirmar Exclusão'),
-        content: const Text('Tem certeza de que deseja excluir este serviço? Esta ação não pode ser desfeita.'),
+        backgroundColor: const Color(0xFF33333D),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Confirmar Exclusão', style: TextStyle(color: Colors.white)),
+        content: const Text('Tem certeza de que deseja excluir este serviço? Esta ação não pode ser desfeita.', style: TextStyle(color: Colors.white70)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -175,127 +236,256 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
 
     if (mounted) {
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Serviço excluído com sucesso!'), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Serviço excluído com sucesso!'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(dataProvider.error ?? 'Erro ao excluir serviço'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(dataProvider.error ?? 'Erro ao excluir serviço'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
 
+  void _showAnimatedDialog({required String title, required VoidCallback onSave}) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: '',
+      transitionDuration: const Duration(milliseconds: 400),
+      pageBuilder: (context, animation1, animation2) => const SizedBox(),
+      transitionBuilder: (context, a1, a2, widget) {
+        final curvedValue = Curves.easeInOutBack.transform(a1.value) - 1.0;
+        return Transform(
+          transform: Matrix4.translationValues(0.0, curvedValue * 200, 0.0),
+          child: Opacity(
+            opacity: a1.value,
+            child: _buildFormDialog(title: title, onSave: onSave),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildFormDialog({required String title, required VoidCallback onSave}) {
     return AlertDialog(
-      title: Text(title),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Row(
+        children: [
+          Icon(title.startsWith('Adicionar') ? Icons.add_box_rounded : Icons.edit_rounded, color: Colors.white, size: 24),
+          const SizedBox(width: 12),
+          Text(title, style: const TextStyle(color: Colors.white)),
+        ],
+      ),
+      backgroundColor: const Color(0xFF6A5ACD).withOpacity(0.9),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: Colors.white.withOpacity(0.3)),
+      ),
       content: SizedBox(
         width: 500,
         child: Form(
-          key: _formKey,
+          key: _serviceFormKey,
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextFormField(controller: _nameController, decoration: const InputDecoration(labelText: 'Nome do Serviço'), validator: (v) => v!.isEmpty ? 'Obrigatório' : null),
-                TextFormField(controller: _descriptionController, decoration: const InputDecoration(labelText: 'Descrição'), maxLines: 2),
-                TextFormField(controller: _priceController, decoration: const InputDecoration(labelText: 'Preço (R\$)', prefixIcon: Icon(Icons.attach_money)), keyboardType: TextInputType.number, validator: (v) => v!.isEmpty ? 'Obrigatório' : null),
-                TextFormField(controller: _operatingHoursController, decoration: const InputDecoration(labelText: 'Horário de Atendimento')),
+                _buildTextFormField(
+                  controller: _serviceNameController,
+                  labelText: 'Nome do Serviço',
+                  icon: Icons.medical_services,
+                ),
+                const SizedBox(height: 16),
+                _buildTextFormField(
+                  controller: _serviceDescriptionController,
+                  labelText: 'Descrição',
+                  icon: Icons.description,
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 16),
+                _buildTextFormField(
+                  controller: _servicePriceController,
+                  labelText: 'Preço (R\$)',
+                  icon: Icons.attach_money,
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 16),
+                _buildTextFormField(
+                  controller: _serviceOperatingHoursController,
+                  labelText: 'Horário de Funcionamento',
+                  icon: Icons.access_time,
+                ),
+                const SizedBox(height: 16),
+                _buildTextFormField(
+                  controller: _serviceImageUrlController,
+                  labelText: 'URL da Imagem do Serviço',
+                  icon: Icons.image,
+                  keyboardType: TextInputType.url,
+                ),
               ],
             ),
           ),
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-        ElevatedButton(onPressed: onSave, child: const Text('Salvar')),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar', style: TextStyle(color: Colors.white70)),
+        ),
+        ElevatedButton(
+          onPressed: onSave,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF9370DB),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          ),
+          child: const Text('Salvar'),
+        ),
       ],
     );
   }
 
+  Widget _buildTextFormField({
+    required TextEditingController controller,
+    required String labelText,
+    required IconData icon,
+    int? maxLines = 1,
+    TextInputType? keyboardType = TextInputType.text,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        labelText: labelText,
+        labelStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
+        prefixIcon: Icon(icon, color: Colors.white.withOpacity(0.8), size: 20),
+        filled: true,
+        fillColor: Colors.black.withOpacity(0.15),
+        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: const Color(0xFF9370DB), width: 2),
+        ),
+      ),
+      validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
+    );
+  }
+
+  // --- WIDGETS DE CONSTRUÇÃO DA UI ---
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text('Painel do Veterinário', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.black87,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout_rounded),
-            onPressed: () {
-              Provider.of<AuthProvider>(context, listen: false).logout();
-              Navigator.of(context).pushReplacementNamed('/login');
-            },
+      body: Stack(
+        children: [
+          // Fundo animado
+          Container(
+            width: double.infinity,
+            height: double.infinity,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF667eea),
+                  Color(0xFF764ba2),
+                  Color(0xFFf093fb),
+                ],
+                stops: [0.0, 0.6, 1.0],
+              ),
+            ),
+            child: AnimatedBuilder(
+              animation: _pawAnimationController!,
+              builder: (context, child) {
+                return CustomPaint(
+                  painter: _PawPrintPainter(_paws, _pawAnimationController!.value),
+                );
+              },
+            ),
           ),
-        ],
-      ),
-      body: Consumer2<AuthProvider, DataProvider>(
+          
+          // Conteúdo principal
+          SafeArea(
+            child: Consumer2<AuthProvider, DataProvider>(
         builder: (context, authProvider, dataProvider, child) {
           if (dataProvider.isLoading && dataProvider.vetServices.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          
-          final myServices = dataProvider.vetServices.where((s) => s.ownerId == authProvider.currentUser?.id).toList();
+                  return const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  );
+                }
 
-          return FadeTransition(
-            opacity: _fadeAnimation,
-            child: CustomScrollView(
+                return CustomScrollView(
               slivers: [
+                    // Header
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: _buildHeader(authProvider, dataProvider),
+                      ),
+                    ),
+
+                    // Seletor de seções
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildHeader(authProvider),
-                        const SizedBox(height: 24),
-                        const Text("Meus Serviços", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)),
-                        const SizedBox(height: 8),
-                      ],
+                        child: _buildSectionSelector(),
+                      ),
                     ),
-                  ),
-                ),
-                _buildServiceGrid(myServices),
-              ],
-            ),
+
+                    // Conteúdo das seções
+                    SliverPadding(
+                      padding: const EdgeInsets.all(16.0),
+                      sliver: _buildSectionContent(dataProvider),
+                    ),
+
+                    // Espaço para botões flutuantes
+                    const SliverToBoxAdapter(
+                      child: SizedBox(height: 100),
+                    ),
+                  ],
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddServiceDialog,
-        label: const Text('Adicionar Serviço'),
-        icon: const Icon(Icons.add),
-        backgroundColor: const Color(0xFF667eea),
+          ),
+
+          // Botões flutuantes
+          _buildFloatingActionButtons(),
+        ],
       ),
     );
   }
 
-  Widget _buildHeader(AuthProvider authProvider) {
-    return Container(
-      padding: const EdgeInsets.all(20),
+  Widget _buildHeader(AuthProvider authProvider, DataProvider dataProvider) {
+    final servicesCount = dataProvider.vetServices.length;
+    final attendedPetsCount = dataProvider.pets.where((p) => p.atendido ?? false).length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF667eea).withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          const CircleAvatar(
-            radius: 28,
-            backgroundColor: Colors.white,
-            child: Icon(
-              Icons.medical_services_rounded,
-              color: Color(0xFF667eea),
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.local_hospital_rounded,
+                color: Colors.white,
               size: 30,
             ),
           ),
@@ -305,23 +495,122 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Olá, Dr. ${authProvider.currentUser?.name ?? 'Veterinário'}!',
+                    'Olá, Dr(a). ${authProvider.currentUser?.name ?? 'Veterinário'}!',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
                 ),
-                const SizedBox(height: 2),
-                if (authProvider.currentUser?.crmv != null)
+                  const SizedBox(height: 4),
                   Text(
-                    'CRMV: ${authProvider.currentUser?.crmv}',
+                    'CRMV: ${authProvider.currentUser?.crmv ?? 'Não informado'}',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.85),
-                      fontStyle: FontStyle.italic,
+                      color: Colors.white.withOpacity(0.8),
                     ),
                   ),
               ],
+            ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.logout, color: Colors.white),
+              onPressed: () {
+                Provider.of<AuthProvider>(context, listen: false).logout();
+                Navigator.of(context).pushReplacementNamed('/login');
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        _buildDashboardMetrics(dataProvider),
+      ],
+    );
+  }
+
+  Widget _buildDashboardMetrics(DataProvider dataProvider) {
+    final servicesCount = dataProvider.vetServices.length;
+    final attendedPetsCount = dataProvider.pets.where((p) => p.atendido ?? false).length;
+
+    return Row(
+      children: [
+        Expanded(
+          child: _buildMetricCard(
+            icon: Icons.medical_services,
+            label: 'Serviços',
+            value: servicesCount.toString(),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildMetricCard(
+            icon: Icons.pets,
+            label: 'Pets Atendidos',
+            value: attendedPetsCount.toString(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetricCard({required IconData icon, required String label, required String value}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: Colors.white, size: 24),
+              const SizedBox(width: 8),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(color: Colors.white.withOpacity(0.9)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionSelector() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Expanded(
+            child: _buildSelectorButton(
+              icon: Icons.medical_services_outlined,
+              label: 'Serviços',
+              isSelected: _selectedSection == 'services',
+              onTap: () => setState(() => _selectedSection = 'services'),
+            ),
+          ),
+          Expanded(
+            child: _buildSelectorButton(
+              icon: Icons.pets_outlined,
+              label: 'Pets',
+              isSelected: _selectedSection == 'pets',
+              onTap: () => setState(() => _selectedSection = 'pets'),
             ),
           ),
         ],
@@ -329,89 +618,429 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
     );
   }
 
-  Widget _buildServiceGrid(List<VetService> services) {
-    if (services.isEmpty) {
-      return const SliverToBoxAdapter(
-        child: Center(
-          child: Padding(
-            padding: EdgeInsets.all(32.0),
-            child: Text(
-              "Você ainda não cadastrou nenhum serviço.",
-              style: TextStyle(color: Colors.grey),
-            ),
-          ),
+  Widget _buildSelectorButton({
+    required IconData icon,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF667eea) : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
         ),
-      );
-    }
-    return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      sliver: SliverGrid(
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 400.0,
-          mainAxisSpacing: 16.0,
-          crossAxisSpacing: 16.0,
-          childAspectRatio: 2.8,
-        ),
-        delegate: SliverChildBuilderDelegate(
-          (BuildContext context, int index) => _buildServiceCard(services[index]),
-          childCount: services.length,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildServiceCard(VetService service) {
-    return Card(
-      elevation: 2,
-      shadowColor: Colors.black12,
-      margin: const EdgeInsets.all(0),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircleAvatar(
-              backgroundColor: const Color(0xFF764ba2).withOpacity(0.1),
-              child: const Icon(Icons.local_hospital_rounded, color: Color(0xFF764ba2)),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(service.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  Text(
-                    service.description ?? 'Sem descrição',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const Spacer(),
-                  Text(
-                    'R\$ ${service.price.toStringAsFixed(2)}',
-                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 15),
-                  ),
-                ],
+            Icon(icon, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
               ),
-            ),
-            PopupMenuButton<String>(
-              onSelected: (value) {
-                if (value == 'edit') {
-                  _showEditServiceDialog(service);
-                } else if (value == 'delete') {
-                  _handleDeleteService(service.id!);
-                }
-              },
-              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                const PopupMenuItem<String>(value: 'edit', child: ListTile(leading: Icon(Icons.edit), title: Text('Editar'))),
-                const PopupMenuItem<String>(value: 'delete', child: ListTile(leading: Icon(Icons.delete), title: Text('Excluir'))),
-              ],
             ),
           ],
         ),
       ),
     );
   }
+
+  Widget _buildEmptyState(String title, String message, IconData icon) {
+    return SliverFillRemaining(
+      hasScrollBody: false,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 64, color: Colors.white.withOpacity(0.5)),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.white.withOpacity(0.7),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionContent(DataProvider dataProvider) {
+    if (_selectedSection == 'services') {
+      final services = dataProvider.vetServices;
+      if (services.isEmpty) {
+        return _buildEmptyState(
+          'Nenhum Serviço Cadastrado',
+          'Adicione um novo serviço no botão +',
+          Icons.medical_services_rounded,
+        );
+      }
+      return SliverGrid(
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 400.0,
+          mainAxisSpacing: 16.0,
+          crossAxisSpacing: 16.0,
+          childAspectRatio: 0.9,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (BuildContext context, int index) {
+            return _buildServiceCard(services[index]);
+          },
+          childCount: services.length,
+        ),
+      );
+    } else if (_selectedSection == 'pets') {
+      final pets = dataProvider.pets;
+      if (pets.isEmpty) {
+        return _buildEmptyState(
+          'Nenhum Pet Encontrado',
+          'Os tutores ainda não cadastraram seus pets.',
+          Icons.pets,
+        );
+      }
+      return SliverGrid(
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 350.0,
+          mainAxisSpacing: 16.0,
+          crossAxisSpacing: 16.0,
+          childAspectRatio: 1.0,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (BuildContext context, int index) {
+            return _buildPetCard(pets[index]);
+          },
+          childCount: pets.length,
+      ),
+    );
+  }
+    // Fallback
+    return const SliverToBoxAdapter(child: SizedBox.shrink());
+  }
+
+  // --- Widgets para Seções Específicas ---
+
+  Widget _buildServiceCard(VetService service) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+          Expanded(
+            flex: 3,
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              child: Image.network(
+                service.imageUrl ?? '',
+                fit: BoxFit.cover,
+                width: double.infinity,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: Colors.black.withOpacity(0.2),
+                    child: const Center(
+                      child: Icon(Icons.local_hospital, color: Colors.white, size: 50),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+            Expanded(
+            flex: 4,
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    service.name,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    service.description ?? '',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 12,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const Spacer(),
+                  Row(
+                    children: [
+                      Icon(Icons.access_time, color: Colors.white.withOpacity(0.8), size: 14),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          service.operatingHours ?? 'Não informado',
+                          style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'R\$ ${service.price.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _showEditServiceDialog(service),
+                          icon: const Icon(Icons.edit, size: 16),
+                          label: const Text('Editar'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white.withOpacity(0.2),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            textStyle: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _handleDeleteService(service.id!),
+                          icon: const Icon(Icons.delete, size: 16),
+                          label: const Text('Excluir'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red.withOpacity(0.7),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            textStyle: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPetCard(Pet pet) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 3,
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              child: Image.network(
+                pet.photoUrl ?? '',
+                fit: BoxFit.cover,
+                width: double.infinity,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: Colors.black.withOpacity(0.2),
+                    child: Center(
+                      child: Icon(
+                        pet.type == 'Gato' ? Icons.pets : Icons.pets, // Mudar ícone se quiser
+                        color: Colors.white,
+                        size: 50,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 4,
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    pet.name,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${pet.breed ?? 'SRD'} • ${pet.age} anos',
+                    style: TextStyle(color: Colors.white.withOpacity(0.8)),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Tutor: ${pet.tutor?['name'] ?? 'Não informado'}',
+                    style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                     maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const Spacer(),
+                   ActionChip(
+                    avatar: Icon(
+                      pet.atendido ?? false ? Icons.check_circle : Icons.hourglass_empty,
+                      color: pet.atendido ?? false ? Colors.greenAccent : Colors.orangeAccent,
+                    ),
+                    label: Text(
+                      pet.atendido ?? false ? 'Atendido' : 'Aguardando',
+                      style: TextStyle(
+                        color: pet.atendido ?? false ? Colors.greenAccent : Colors.orangeAccent,
+                      ),
+                    ),
+                    backgroundColor: (pet.atendido ?? false ? Colors.green : Colors.orange).withOpacity(0.2),
+                    shape: StadiumBorder(
+                      side: BorderSide(
+                        color: (pet.atendido ?? false ? Colors.green : Colors.orange).withOpacity(0.5),
+                      ),
+                    ),
+            ),
+          ],
+        ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFloatingActionButtons() {
+    if (_selectedSection == 'services') {
+      return Positioned(
+        bottom: 16,
+        right: 16,
+        child: FloatingActionButton(
+          heroTag: 'addServiceBtn',
+          onPressed: _showAddServiceDialog,
+          backgroundColor: const Color(0xFF667eea),
+          child: const Icon(Icons.add, color: Colors.white),
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+}
+
+// --- Classes de Animação e Pintura ---
+
+class _Paw {
+  Offset position;
+  final double scale;
+  final double opacity;
+  final double speed;
+
+  _Paw({
+    required this.position,
+    required this.scale,
+    required this.opacity,
+    required this.speed,
+  });
+}
+
+class _PawPrintPainter extends CustomPainter {
+  final List<_Paw> paws;
+  final double animationValue;
+
+  _PawPrintPainter(this.paws, this.animationValue);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+    
+    if (paws.isEmpty) return;
+
+    for (final paw in paws) {
+      // Movimento vertical
+      final currentY = paw.position.dy - (animationValue * 100 * paw.speed);
+      
+      if (currentY < -50) {
+        // Reinicia a posição no topo quando sai da tela por baixo
+        // Esta lógica de atualização de estado não deve estar no paint.
+        // A animação deve ser controlada no AnimationController.
+        // Por simplicidade, vamos deixar o controller fazer o loop.
+      }
+
+      paint.color = Colors.white.withOpacity(paw.opacity);
+
+      // Desenho da patinha
+      final pawSize = 20.0 * paw.scale;
+      final center = Offset(paw.position.dx, currentY);
+
+      // Palma
+      final mainPad = RRect.fromRectAndRadius(
+        Rect.fromCenter(center: center, width: pawSize, height: pawSize * 0.9),
+        Radius.circular(pawSize * 0.3),
+      );
+      canvas.drawRRect(mainPad, paint);
+
+      // Dedos
+      final toeSize = pawSize * 0.25;
+      final toeY = center.dy - (pawSize * 0.6);
+      canvas.drawCircle(Offset(center.dx - pawSize * 0.4, toeY), toeSize, paint);
+      canvas.drawCircle(Offset(center.dx + pawSize * 0.4, toeY), toeSize, paint);
+      canvas.drawCircle(Offset(center.dx - pawSize * 0.15, toeY - toeSize * 0.5), toeSize, paint);
+      canvas.drawCircle(Offset(center.dx + pawSize * 0.15, toeY - toeSize * 0.5), toeSize, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _PawPrintPainter oldDelegate) => true;
 } 

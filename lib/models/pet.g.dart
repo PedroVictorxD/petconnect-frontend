@@ -17,6 +17,7 @@ Pet _$PetFromJson(Map<String, dynamic> json) => Pet(
   photoUrl: json['photoUrl'] as String?,
   activityLevel: json['activityLevel'] as String?,
   notes: json['notes'] as String?,
+  atendido: json['atendido'] as bool?,
 );
 
 Map<String, dynamic> _$PetToJson(Pet instance) => <String, dynamic>{
@@ -30,4 +31,5 @@ Map<String, dynamic> _$PetToJson(Pet instance) => <String, dynamic>{
   'photoUrl': instance.photoUrl,
   'activityLevel': instance.activityLevel,
   'notes': instance.notes,
+  'atendido': instance.atendido,
 };

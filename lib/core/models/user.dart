@@ -29,13 +29,13 @@ class User {
 
   Map<String, dynamic> toJson() {
     final data = <String, dynamic>{
-      'name': name,
-      'email': email,
-      'password': password,
-      'phone': phone,
-      'location': location,
-      'type': type,
-    };
+    'name': name,
+    'email': email,
+    'password': password,
+    'phone': phone,
+    'location': location,
+    'type': type,
+  };
     if (id != null) {
       data['id'] = id;
     }

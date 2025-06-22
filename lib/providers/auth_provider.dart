@@ -81,7 +81,6 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       User? createdUser;
-      String? createdToken;
       // Supondo que o backend retorne token e user, ajuste conforme necessário
       switch (userType) {
         case 'tutor':

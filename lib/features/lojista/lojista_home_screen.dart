@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:math';
+import 'package:url_launcher/url_launcher.dart';
+import 'dart:ui';
+import 'package:flutter/rendering.dart';
+
+import '../../models/pet.dart';
+import '../../models/product.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_provider.dart';
-import '../../models/product.dart';
 
 class LojistaHomeScreen extends StatefulWidget {
   const LojistaHomeScreen({super.key});
@@ -12,77 +18,104 @@ class LojistaHomeScreen extends StatefulWidget {
 }
 
 class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProviderStateMixin {
-  final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _priceController = TextEditingController();
-  final _measurementUnitController = TextEditingController();
-  final _imageUrlController = TextEditingController();
+  // Formulário de Produto
+  final _productFormKey = GlobalKey<FormState>();
+  final _productNameController = TextEditingController();
+  final _productDescriptionController = TextEditingController();
+  final _productPriceController = TextEditingController();
+  final _productImageUrlController = TextEditingController();
+  final _productCategoryController = TextEditingController();
 
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
+  // UI
+  String _selectedSection = 'products';
+
+  // Animação do Fundo
+  AnimationController? _pawAnimationController;
+  final List<_Paw> _paws = [];
+  final Random _random = Random();
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
-    );
-    _animationController.forward();
+    _initializeAnimations();
+    _loadData();
+  }
 
+  void _initializeAnimations() {
+    _pawAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 3000),
+      vsync: this,
+    )..repeat();
+
+    // Gerar patinhas flutuantes
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final size = MediaQuery.of(context).size;
+      for (int i = 0; i < 20; i++) {
+        _paws.add(_Paw(
+          position: Offset(
+            _random.nextDouble() * size.width,
+            _random.nextDouble() * size.height,
+          ),
+          scale: _random.nextDouble() * 0.5 + 0.3,
+          opacity: _random.nextDouble() * 0.3 + 0.1,
+          speed: _random.nextDouble() * 2 + 1,
+        ));
+      }
+    });
+  }
+
+  void _loadData() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       final dataProvider = Provider.of<DataProvider>(context, listen: false);
       dataProvider.loadProducts();
+      dataProvider.loadPets();
     });
   }
 
   @override
   void dispose() {
-    _nameController.dispose();
-    _descriptionController.dispose();
-    _priceController.dispose();
-    _measurementUnitController.dispose();
-    _imageUrlController.dispose();
-    _animationController.dispose();
+    _productNameController.dispose();
+    _productDescriptionController.dispose();
+    _productPriceController.dispose();
+    _productImageUrlController.dispose();
+    _productCategoryController.dispose();
+    _pawAnimationController?.dispose();
     super.dispose();
   }
 
   void _clearForm() {
-    _formKey.currentState?.reset();
-    _nameController.clear();
-    _descriptionController.clear();
-    _priceController.clear();
-    _measurementUnitController.clear();
-    _imageUrlController.clear();
+    _productFormKey.currentState?.reset();
+    _productNameController.clear();
+    _productDescriptionController.clear();
+    _productPriceController.clear();
+    _productImageUrlController.clear();
+    _productCategoryController.clear();
   }
+
+  // --- MÉTODOS DE CRUD DE PRODUTO ---
 
   void _showAddProductDialog() {
     _clearForm();
-    showDialog(
-      context: context,
-      builder: (context) => _buildFormDialog(
-        title: 'Adicionar Novo Produto',
-        onSave: _addProduct,
-      ),
+    _showAnimatedDialog(
+      title: 'Adicionar Novo Produto',
+      onSave: _addProduct,
     );
   }
 
   Future<void> _addProduct() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_productFormKey.currentState!.validate()) return;
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final dataProvider = Provider.of<DataProvider>(context, listen: false);
 
     final product = Product(
-      name: _nameController.text,
-      description: _descriptionController.text,
-      price: double.parse(_priceController.text.replaceAll(',', '.')),
-      measurementUnit: _measurementUnitController.text,
-      imageUrl: _imageUrlController.text,
+      name: _productNameController.text,
+      description: _productDescriptionController.text,
+      price: double.parse(_productPriceController.text.replaceAll(',', '.')),
+      imageUrl: _productImageUrlController.text,
+      category: _productCategoryController.text,
       ownerId: authProvider.currentUser?.id,
       ownerName: authProvider.currentUser?.name,
       ownerLocation: authProvider.currentUser?.location,
@@ -94,43 +127,52 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
     if (mounted) {
       Navigator.pop(context);
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Produto adicionado com sucesso!'), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Produto adicionado com sucesso!'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(dataProvider.error ?? 'Erro ao adicionar produto'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(dataProvider.error ?? 'Erro ao adicionar produto'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
 
   void _showEditProductDialog(Product product) {
     _clearForm();
-    _nameController.text = product.name;
-    _descriptionController.text = product.description ?? '';
-    _priceController.text = product.price.toString().replaceAll('.', ',');
-    _measurementUnitController.text = product.measurementUnit ?? '';
-    _imageUrlController.text = product.imageUrl ?? '';
+    _productNameController.text = product.name;
+    _productDescriptionController.text = product.description ?? '';
+    _productPriceController.text = product.price.toString().replaceAll('.', ',');
+    _productImageUrlController.text = product.imageUrl ?? '';
+    _productCategoryController.text = product.category ?? '';
 
-    showDialog(
-      context: context,
-      builder: (context) => _buildFormDialog(
-        title: 'Editar Produto',
-        onSave: () => _updateProduct(product),
-      ),
+    _showAnimatedDialog(
+      title: 'Editar Produto',
+      onSave: () => _updateProduct(product),
     );
   }
 
   Future<void> _updateProduct(Product product) async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_productFormKey.currentState!.validate()) return;
 
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final dataProvider = Provider.of<DataProvider>(context, listen: false);
 
     final updatedProduct = Product(
       id: product.id,
-      name: _nameController.text,
-      description: _descriptionController.text,
-      price: double.parse(_priceController.text.replaceAll(',', '.')),
-      measurementUnit: _measurementUnitController.text,
-      imageUrl: _imageUrlController.text,
+      name: _productNameController.text,
+      description: _productDescriptionController.text,
+      price: double.parse(_productPriceController.text.replaceAll(',', '.')),
+      imageUrl: _productImageUrlController.text,
+      category: _productCategoryController.text,
       ownerId: authProvider.currentUser?.id,
       ownerName: authProvider.currentUser?.name,
       ownerLocation: authProvider.currentUser?.location,
@@ -142,9 +184,21 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
     if (mounted) {
       Navigator.pop(context);
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Produto atualizado com sucesso!'), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Produto atualizado com sucesso!'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(dataProvider.error ?? 'Erro ao atualizar produto'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(dataProvider.error ?? 'Erro ao atualizar produto'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
@@ -179,32 +233,97 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
 
     if (mounted) {
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Produto excluído com sucesso!'), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Produto excluído com sucesso!'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(dataProvider.error ?? 'Erro ao excluir produto'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(dataProvider.error ?? 'Erro ao excluir produto'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     }
   }
 
+  void _showAnimatedDialog({required String title, required VoidCallback onSave}) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: '',
+      transitionDuration: const Duration(milliseconds: 400),
+      pageBuilder: (context, animation1, animation2) => const SizedBox(),
+      transitionBuilder: (context, a1, a2, widget) {
+        final curvedValue = Curves.easeInOutBack.transform(a1.value) - 1.0;
+        return Transform(
+          transform: Matrix4.translationValues(0.0, curvedValue * 200, 0.0),
+          child: Opacity(
+            opacity: a1.value,
+            child: _buildFormDialog(title: title, onSave: onSave),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildFormDialog({required String title, required VoidCallback onSave}) {
     return AlertDialog(
-      title: Text(title),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Row(
+        children: [
+          Icon(title.startsWith('Adicionar') ? Icons.add_box_rounded : Icons.edit_rounded, color: Colors.white, size: 24),
+          const SizedBox(width: 12),
+          Text(title, style: const TextStyle(color: Colors.white)),
+        ],
+      ),
+      backgroundColor: const Color(0xFF6A5ACD).withOpacity(0.9), // Roxo da calculadora
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: Colors.white.withOpacity(0.3)),
+      ),
       content: SizedBox(
         width: 500,
         child: Form(
-          key: _formKey,
+          key: _productFormKey,
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextFormField(controller: _nameController, decoration: const InputDecoration(labelText: 'Nome do Produto'), validator: (v) => v!.isEmpty ? 'Obrigatório' : null),
-                TextFormField(controller: _descriptionController, decoration: const InputDecoration(labelText: 'Descrição'), maxLines: 2),
-                TextFormField(controller: _priceController, decoration: const InputDecoration(labelText: 'Preço (R\$)', prefixIcon: Icon(Icons.attach_money)), keyboardType: TextInputType.number, validator: (v) => v!.isEmpty ? 'Obrigatório' : null),
-                TextFormField(controller: _measurementUnitController, decoration: const InputDecoration(labelText: 'Unidade de Medida (kg, un, etc.)')),
-                TextFormField(
-                  controller: _imageUrlController,
-                  decoration: const InputDecoration(labelText: 'URL da Imagem do Produto'),
+                _buildTextFormField(
+                  controller: _productNameController,
+                  labelText: 'Nome do Produto',
+                  icon: Icons.shopping_bag,
+                ),
+                const SizedBox(height: 16),
+                _buildTextFormField(
+                  controller: _productDescriptionController,
+                  labelText: 'Descrição',
+                  icon: Icons.description,
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 16),
+                _buildTextFormField(
+                  controller: _productPriceController,
+                  labelText: 'Preço (R\$)',
+                  icon: Icons.attach_money,
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 16),
+                _buildTextFormField(
+                  controller: _productCategoryController,
+                  labelText: 'Categoria',
+                  icon: Icons.category,
+                ),
+                const SizedBox(height: 16),
+                _buildTextFormField(
+                  controller: _productImageUrlController,
+                  labelText: 'URL da Imagem do Produto',
+                  icon: Icons.image,
                   keyboardType: TextInputType.url,
                 ),
               ],
@@ -213,83 +332,157 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-        ElevatedButton(onPressed: onSave, child: const Text('Salvar')),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar', style: TextStyle(color: Colors.white70)),
+        ),
+        ElevatedButton(
+          onPressed: onSave,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF9370DB), // Roxo mais claro
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          ),
+          child: const Text('Salvar'),
+        ),
       ],
     );
   }
 
+  Widget _buildTextFormField({
+    required TextEditingController controller,
+    required String labelText,
+    required IconData icon,
+    int? maxLines = 1,
+    TextInputType? keyboardType = TextInputType.text,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        labelText: labelText,
+        labelStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
+        prefixIcon: Icon(icon, color: Colors.white.withOpacity(0.8), size: 20),
+        filled: true,
+        fillColor: Colors.black.withOpacity(0.15),
+        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: const Color(0xFF9370DB), width: 2), // Roxo mais claro
+        ),
+      ),
+      validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
+    );
+  }
+
+  // --- WIDGETS DE CONSTRUÇÃO DA UI ---
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text('Painel do Lojista', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.black87,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout_rounded),
-            onPressed: () {
-              Provider.of<AuthProvider>(context, listen: false).logout();
-              Navigator.of(context).pushReplacementNamed('/login');
-            },
+      body: Stack(
+        children: [
+          // Fundo animado
+          Container(
+            width: double.infinity,
+            height: double.infinity,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFF667eea),
+                  Color(0xFF764ba2),
+                  Color(0xFFf093fb),
+                ],
+                stops: [0.0, 0.6, 1.0],
+              ),
+            ),
+            child: AnimatedBuilder(
+              animation: _pawAnimationController!,
+              builder: (context, child) {
+                return CustomPaint(
+                  painter: _PawPrintPainter(_paws, _pawAnimationController!.value),
+                );
+              },
+            ),
           ),
-        ],
-      ),
-      body: Consumer2<AuthProvider, DataProvider>(
+          
+          // Conteúdo principal
+          SafeArea(
+            child: Consumer2<AuthProvider, DataProvider>(
         builder: (context, authProvider, dataProvider, child) {
           if (dataProvider.isLoading && dataProvider.products.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          
-          final myProducts = dataProvider.products.where((p) => p.ownerId == authProvider.currentUser?.id).toList();
+                  return const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  );
+                }
 
-          return FadeTransition(
-            opacity: _fadeAnimation,
-            child: CustomScrollView(
+                return CustomScrollView(
               slivers: [
+                    // Header
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildHeader(authProvider),
-                        const SizedBox(height: 24),
-                        const Text("Meus Produtos", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)),
-                         const SizedBox(height: 8),
-                      ],
+                        child: _buildHeader(authProvider, dataProvider),
+                      ),
                     ),
-                  ),
-                ),
-                _buildProductGrid(myProducts),
-              ],
-            ),
+
+                    // Seletor de seções
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: _buildSectionSelector(),
+                      ),
+                    ),
+
+                    // Conteúdo das seções
+                    SliverPadding(
+                      padding: const EdgeInsets.all(16.0),
+                      sliver: _buildSectionContent(dataProvider),
+                    ),
+
+                    // Espaço para botões flutuantes
+                    const SliverToBoxAdapter(
+                      child: SizedBox(height: 100),
+                    ),
+                  ],
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddProductDialog,
-        label: const Text('Adicionar Produto'),
-        icon: const Icon(Icons.add),
-        backgroundColor: const Color(0xFF667eea),
+          ),
+
+          // Botões flutuantes
+          _buildFloatingActionButtons(),
+        ],
       ),
     );
   }
 
-  Widget _buildHeader(AuthProvider authProvider) {
-    return Container(
-      padding: const EdgeInsets.all(20),
+  Widget _buildHeader(AuthProvider authProvider, DataProvider dataProvider) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFF667eea), Color(0xFF764ba2)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: const Color(0xFF667eea).withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))],
-      ),
-      child: Row(
-        children: [
-          const CircleAvatar(radius: 28, backgroundColor: Colors.white, child: Icon(Icons.store_rounded, color: Color(0xFF667eea), size: 30)),
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.store,
+                color: Colors.white,
+                size: 30,
+              ),
+            ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -303,12 +496,115 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
                     color: Colors.white,
                   ),
                 ),
-                const SizedBox(height: 2),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Sua loja de produtos para pets',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.logout, color: Colors.white),
+              onPressed: () {
+                Provider.of<AuthProvider>(context, listen: false).logout();
+                Navigator.of(context).pushReplacementNamed('/login');
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        _buildDashboardMetrics(dataProvider),
+      ],
+    );
+  }
+
+  Widget _buildDashboardMetrics(DataProvider dataProvider) {
+    final productsCount = dataProvider.products.length;
+    final petsCount = dataProvider.pets.length;
+
+    return Row(
+      children: [
+        Expanded(
+          child: _buildMetricCard(
+            icon: Icons.shopping_bag,
+            label: 'Produtos',
+            value: productsCount.toString(),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: _buildMetricCard(
+            icon: Icons.pets,
+            label: 'Pets na Plataforma',
+            value: petsCount.toString(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetricCard({required IconData icon, required String label, required String value}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: Colors.white, size: 24),
+              const SizedBox(width: 8),
                 Text(
-                  authProvider.currentUser?.email ?? '',
-                  style: TextStyle(color: Colors.white.withOpacity(0.85)),
+                value,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
                 ),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(color: Colors.white.withOpacity(0.9)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionSelector() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Expanded(
+            child: _buildSelectorButton(
+              icon: Icons.shopping_bag_outlined,
+              label: 'Produtos',
+              isSelected: _selectedSection == 'products',
+              onTap: () => setState(() => _selectedSection = 'products'),
+            ),
+          ),
+          Expanded(
+            child: _buildSelectorButton(
+              icon: Icons.pets_outlined,
+              label: 'Pets',
+              isSelected: _selectedSection == 'pets',
+              onTap: () => setState(() => _selectedSection = 'pets'),
             ),
           ),
         ],
@@ -316,84 +612,392 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
     );
   }
 
-  Widget _buildProductGrid(List<Product> products) {
-    if (products.isEmpty) {
-      return const SliverToBoxAdapter(
-          child: Center(
-              child: Padding(
-                  padding: EdgeInsets.all(32.0),
-                  child: Text("Você ainda não cadastrou nenhum produto.",
-                      style: TextStyle(color: Colors.grey)))));
-    }
-    return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      sliver: SliverGrid(
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 400.0,
-          mainAxisSpacing: 16.0,
-          crossAxisSpacing: 16.0,
-          childAspectRatio: 2.8,
+  Widget _buildSelectorButton({
+    required IconData icon,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF667eea) : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
         ),
-        delegate: SliverChildBuilderDelegate(
-          (BuildContext context, int index) => _buildProductCard(products[index]),
-          childCount: products.length,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
+  Widget _buildEmptyState(String title, String message, IconData icon) {
+    return SliverFillRemaining(
+      hasScrollBody: false,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 64, color: Colors.white.withOpacity(0.5)),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.white.withOpacity(0.7),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionContent(DataProvider dataProvider) {
+    if (_selectedSection == 'products') {
+      final products = dataProvider.products;
+    if (products.isEmpty) {
+        return _buildEmptyState(
+          'Nenhum Produto Cadastrado',
+          'Adicione um novo produto no botão +',
+          Icons.shopping_bag,
+        );
+      }
+      return SliverGrid(
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 400.0,
+          mainAxisSpacing: 16.0,
+          crossAxisSpacing: 16.0,
+          childAspectRatio: 0.9,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (BuildContext context, int index) {
+            return _buildProductCard(products[index]);
+          },
+          childCount: products.length,
+        ),
+      );
+    } else if (_selectedSection == 'pets') {
+      final pets = dataProvider.pets;
+      if (pets.isEmpty) {
+        return _buildEmptyState(
+          'Nenhum Pet Encontrado',
+          'Ainda não há pets cadastrados na plataforma.',
+          Icons.pets,
+        );
+      }
+      return SliverGrid(
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 350.0,
+          mainAxisSpacing: 16.0,
+          crossAxisSpacing: 16.0,
+          childAspectRatio: 1.0,
+        ),
+        delegate: SliverChildBuilderDelegate(
+          (BuildContext context, int index) {
+            return _buildPetCard(pets[index]);
+          },
+          childCount: pets.length,
+      ),
+    );
+  }
+    // Fallback
+    return const SliverToBoxAdapter(child: SizedBox.shrink());
+  }
+
+  // --- Widgets para Seções Específicas ---
+
   Widget _buildProductCard(Product product) {
-    return Card(
-      elevation: 4,
-      shadowColor: Colors.grey.withOpacity(0.2),
-      margin: const EdgeInsets.symmetric(vertical: 10),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      child: Row(
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 120,
-            height: 120,
+          Expanded(
+            flex: 3,
             child: ClipRRect(
-              borderRadius: const BorderRadius.horizontal(left: Radius.circular(15)),
-              child: (product.imageUrl != null && product.imageUrl!.isNotEmpty)
-                ? Image.network(
-                    product.imageUrl!,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              child: Image.network(
+                product.imageUrl ?? '',
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => _buildProductPlaceholderIcon(),
-                  )
-                : _buildProductPlaceholderIcon(),
+                width: double.infinity,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: Colors.black.withOpacity(0.2),
+                    child: const Center(
+                      child: Icon(Icons.shopping_bag, color: Colors.white, size: 50),
+                    ),
+                  );
+                },
+              ),
             ),
           ),
           Expanded(
+            flex: 4,
             child: Padding(
               padding: const EdgeInsets.all(12.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                  Text(
+                    product.name,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                   const SizedBox(height: 4),
-                  Text(product.description ?? '', maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: Colors.grey.shade600)),
+                   if (product.category != null && product.category!.isNotEmpty)
+                    Text(
+                      product.category!,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.7),
+                        fontSize: 12,
+                        fontStyle: FontStyle.italic
+                      ),
+                    ),
+                  const Spacer(),
+                   Text(
+                    'R\$ ${product.price.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
                   const SizedBox(height: 8),
-                  Text('R\$ ${product.price.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.green)),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _showEditProductDialog(product),
+                          icon: const Icon(Icons.edit, size: 16),
+                          label: const Text('Editar'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white.withOpacity(0.2),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            textStyle: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _handleDeleteProduct(product.id!),
+                          icon: const Icon(Icons.delete, size: 16),
+                          label: const Text('Excluir'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red.withOpacity(0.7),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            textStyle: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
           ),
-          Column(
-            children: [
-              IconButton(icon: const Icon(Icons.edit, color: Colors.blueGrey), onPressed: () => _showEditProductDialog(product)),
-              IconButton(icon: const Icon(Icons.delete, color: Colors.redAccent), onPressed: () => _handleDeleteProduct(product.id!)),
-            ],
-          )
         ],
       ),
     );
   }
 
-  Widget _buildProductPlaceholderIcon() {
+  Widget _buildPetCard(Pet pet) {
     return Container(
-      color: Colors.grey.shade200,
-      child: Icon(Icons.shopping_bag_outlined, size: 50, color: Colors.grey.shade400),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 3,
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              child: Image.network(
+                pet.photoUrl ?? '',
+                fit: BoxFit.cover,
+                width: double.infinity,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: Colors.black.withOpacity(0.2),
+                    child: Center(
+                      child: Icon(
+                        pet.type == 'Gato' ? Icons.pets : Icons.pets, // Mudar ícone se quiser
+                        color: Colors.white,
+                        size: 50,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 4,
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    pet.name,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${pet.breed ?? 'SRD'} • ${pet.age} anos',
+                    style: TextStyle(color: Colors.white.withOpacity(0.8)),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Tutor: ${pet.tutor?['name'] ?? 'Não informado'}',
+                    style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                     maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
+
+  Widget _buildFloatingActionButtons() {
+    if (_selectedSection == 'products') {
+      return Positioned(
+        bottom: 16,
+        right: 16,
+        child: FloatingActionButton(
+          heroTag: 'addProductBtn',
+          onPressed: _showAddProductDialog,
+          backgroundColor: const Color(0xFF667eea),
+          child: const Icon(Icons.add, color: Colors.white),
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+}
+
+// --- Classes de Animação e Pintura ---
+
+class _Paw {
+  Offset position;
+  final double scale;
+  final double opacity;
+  final double speed;
+
+  _Paw({
+    required this.position,
+    required this.scale,
+    required this.opacity,
+    required this.speed,
+  });
+}
+
+class _PawPrintPainter extends CustomPainter {
+  final List<_Paw> paws;
+  final double animationValue;
+
+  _PawPrintPainter(this.paws, this.animationValue);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..style = PaintingStyle.fill;
+    
+    if (paws.isEmpty) return;
+
+    for (final paw in paws) {
+      final currentY = paw.position.dy - (animationValue * 100 * paw.speed);
+      
+      if (currentY < -50) {
+        // A animação deve ser controlada no AnimationController.
+      }
+
+      paint.color = Colors.white.withOpacity(paw.opacity);
+
+      // Desenho da patinha
+      final pawSize = 20.0 * paw.scale;
+      final center = Offset(paw.position.dx, currentY);
+
+      // Palma
+      final mainPad = RRect.fromRectAndRadius(
+        Rect.fromCenter(center: center, width: pawSize, height: pawSize * 0.9),
+        Radius.circular(pawSize * 0.3),
+      );
+      canvas.drawRRect(mainPad, paint);
+
+      // Dedos
+      final toeSize = pawSize * 0.25;
+      final toeY = center.dy - (pawSize * 0.6);
+      canvas.drawCircle(Offset(center.dx - pawSize * 0.4, toeY), toeSize, paint);
+      canvas.drawCircle(Offset(center.dx + pawSize * 0.4, toeY), toeSize, paint);
+      canvas.drawCircle(Offset(center.dx - pawSize * 0.15, toeY - toeSize * 0.5), toeSize, paint);
+      canvas.drawCircle(Offset(center.dx + pawSize * 0.15, toeY - toeSize * 0.5), toeSize, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _PawPrintPainter oldDelegate) => true;
 } 

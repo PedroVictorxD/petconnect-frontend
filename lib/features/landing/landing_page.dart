@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
+import 'dart:math';
+import '../auth/login_screen.dart';
+import '../auth/register_screen.dart';
 
 class LandingPage extends StatefulWidget {
   const LandingPage({super.key});
@@ -9,38 +11,52 @@ class LandingPage extends StatefulWidget {
 }
 
 class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin {
+  // Animações
   late AnimationController _fadeController;
   late AnimationController _slideController;
   late AnimationController _scaleController;
+  late AnimationController _pawController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _scaleAnimation;
+  late Animation<double> _pawAnimation;
+
+  // Patinhas flutuantes
+  final List<_Paw> _paws = [];
+  final Random _random = Random();
 
   @override
   void initState() {
     super.initState();
     
+    // Inicializar animações
     _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 2000),
       vsync: this,
     );
     
     _slideController = AnimationController(
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
     
     _scaleController = AnimationController(
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 1000),
       vsync: this,
     );
 
+    _pawController = AnimationController(
+      duration: const Duration(milliseconds: 4000),
+      vsync: this,
+    );
+
+    // Configurar animações
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
     );
     
     _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
+      begin: const Offset(0, 0.5),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOutBack));
     
@@ -48,16 +64,37 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
       CurvedAnimation(parent: _scaleController, curve: Curves.elasticOut),
     );
 
+    _pawAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _pawController, curve: Curves.easeInOut),
+    );
+
+    // Iniciar animações
     _startAnimations();
+    _generatePaws();
   }
 
   void _startAnimations() async {
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(const Duration(milliseconds: 500));
     _fadeController.forward();
-    await Future.delayed(const Duration(milliseconds: 200));
-    _slideController.forward();
     await Future.delayed(const Duration(milliseconds: 300));
+    _slideController.forward();
+    await Future.delayed(const Duration(milliseconds: 400));
     _scaleController.forward();
+    _pawController.repeat();
+  }
+
+  void _generatePaws() {
+    for (int i = 0; i < 25; i++) {
+      _paws.add(_Paw(
+        position: Offset(
+          _random.nextDouble() * 500,
+          _random.nextDouble() * 1000,
+        ),
+        scale: _random.nextDouble() * 0.6 + 0.2,
+        opacity: _random.nextDouble() * 0.4 + 0.1,
+        speed: _random.nextDouble() * 3 + 1,
+      ));
+    }
   }
 
   @override
@@ -65,259 +102,381 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
     _fadeController.dispose();
     _slideController.dispose();
     _scaleController.dispose();
+    _pawController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
+      body: Stack(
+        children: [
+          // Fundo animado
+          Container(
         width: double.infinity,
-        decoration: BoxDecoration(
+            height: double.infinity,
+            decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              const Color(0xFF667eea),
-              const Color(0xFF764ba2),
-              const Color(0xFFf093fb).withOpacity(0.8),
+                  Color(0xFF667eea),
+                  Color(0xFF764ba2),
+                  Color(0xFFf093fb),
+                  Color(0xFFf5576c),
             ],
-            stops: const [0.0, 0.6, 1.0],
+                stops: [0.0, 0.3, 0.7, 1.0],
           ),
         ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            bool isWideScreen = constraints.maxWidth > 800;
-
-            return Center(
+            child: AnimatedBuilder(
+              animation: _pawAnimation,
+              builder: (context, child) {
+                return CustomPaint(
+                  painter: _PawPrintPainter(_paws, _pawAnimation.value),
+                );
+              },
+            ),
+          ),
+          
+          // Conteúdo principal
+          SafeArea(
               child: SingleChildScrollView(
-                child: Container(
-                  constraints: BoxConstraints(
-                    maxWidth: isWideScreen ? 600 : constraints.maxWidth,
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Logo animado
-                      FadeTransition(
-                        opacity: _fadeAnimation,
-                        child: ScaleTransition(
-                          scale: _scaleAnimation,
-                          child: Container(
-                            width: 140,
-                            height: 140,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(70),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.2),
-                                  blurRadius: 30,
-                                  offset: const Offset(0, 15),
-                                ),
-                              ],
+                  // Header
+                  _buildHeader(),
+                  
+                  // Hero Section
+                  _buildHeroSection(),
+                  
+                  // Features Section
+                  _buildFeaturesSection(),
+                  
+                  // How it works
+                  _buildHowItWorksSection(),
+                  
+                  // CTA Section
+                  _buildCTASection(),
+                  
+                  // Footer
+                  _buildFooter(),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Logo
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Icon(
-                              Icons.pets,
-                              size: 70,
-                              color: Color(0xFF667eea),
-                            ),
-                          ),
+                  Icons.pets_rounded,
+                  color: Colors.white,
+                  size: 24,
                         ),
                       ),
-                      const SizedBox(height: 40),
-                      
-                      // Título animado
-                      FadeTransition(
-                        opacity: _fadeAnimation,
-                        child: const Text(
+              const SizedBox(width: 12),
+              const Text(
                           'PetConnect',
                           style: TextStyle(
-                            fontSize: 52,
+                  color: Colors.white,
+                  fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: 2,
-                            shadows: [
-                              Shadow(
-                                offset: Offset(0, 2),
-                                blurRadius: 10,
-                                color: Colors.black26,
+                ),
                               ),
                             ],
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      
-                      // Subtítulo animado
-                      FadeTransition(
-                        opacity: _fadeAnimation,
-                        child: const Text(
-                          'Conectando pets, tutores e profissionais',
-                          style: TextStyle(
-                            fontSize: 20,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w300,
-                            height: 1.4,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      const SizedBox(height: 60),
+          
+          // Navigation
+          Row(
+            children: [
+              _buildNavButton('Login', () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
+              )),
+              const SizedBox(width: 16),
+              _buildNavButton('Cadastre-se', () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const RegisterScreen()),
+              ), true),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
-                      // Botões animados
-                      SlideTransition(
-                        position: _slideAnimation,
+  Widget _buildNavButton(String text, VoidCallback onPressed, [bool isPrimary = false]) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        decoration: BoxDecoration(
+          color: isPrimary ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(25),
+          border: isPrimary ? null : Border.all(color: Colors.white.withOpacity(0.3)),
+        ),
+        child: Text(
+          text,
+                          style: TextStyle(
+            color: isPrimary ? const Color(0xFF667eea) : Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+                          ),
+        ),
+                        ),
+    );
+  }
+
+  Widget _buildHeroSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 60.0),
                         child: FadeTransition(
                           opacity: _fadeAnimation,
+        child: SlideTransition(
+          position: _slideAnimation,
+          child: ScaleTransition(
+            scale: _scaleAnimation,
                           child: Column(
                             children: [
-                              _buildAnimatedButton(
-                                text: 'Fazer Login',
-                                icon: Icons.login,
-                                onPressed: () => Navigator.pushNamed(context, '/login'),
-                                primary: true,
+                const Text(
+                  'Conectando o Mundo Pet',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 48,
+                    fontWeight: FontWeight.bold,
+                    height: 1.2,
+                  ),
+                  textAlign: TextAlign.center,
                               ),
                               const SizedBox(height: 20),
-                              _buildAnimatedButton(
-                                text: 'Criar Conta',
-                                icon: Icons.person_add,
-                                onPressed: () => Navigator.pushNamed(context, '/register'),
-                                primary: false,
-                              ),
-                            ],
+                Text(
+                  'A plataforma completa que une tutores, veterinários e lojistas em um só lugar. Cuide do seu pet com facilidade e segurança.',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 18,
+                    height: 1.5,
                           ),
-                        ),
+                  textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 60),
-
-                      // Features animadas
-                      FadeTransition(
-                        opacity: _fadeAnimation,
-                        child: const Text(
-                          'O que oferecemos',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                const SizedBox(height: 40),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildHeroButton(
+                      'Começar Agora',
+                      Icons.rocket_launch_rounded,
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const RegisterScreen()),
                           ),
-                        ),
+                      true,
                       ),
-                      const SizedBox(height: 30),
-                      
-                      _buildFeaturesGrid(),
+                    const SizedBox(width: 20),
+                    _buildHeroButton(
+                      'Saiba Mais',
+                      Icons.info_rounded,
+                      () => _scrollToFeatures(),
+                    ),
+                  ],
+                ),
                     ],
                   ),
                 ),
-              ),
-            );
-          },
         ),
       ),
     );
   }
 
-  Widget _buildAnimatedButton({
-    required String text,
-    required IconData icon,
-    required VoidCallback onPressed,
-    required bool primary,
-  }) {
-    return ElevatedButton.icon(
-      icon: Icon(icon, size: 20),
-      label: Text(text, style: const TextStyle(fontSize: 16)),
-      onPressed: onPressed,
-      style: ElevatedButton.styleFrom(
-        minimumSize: const Size(double.infinity, 55),
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        foregroundColor: primary ? const Color(0xFF667eea) : Colors.white,
-        backgroundColor: primary ? Colors.white : Colors.transparent,
-        shape: RoundedRectangleBorder(
+  Widget _buildHeroButton(String text, IconData icon, VoidCallback onPressed, [bool isPrimary = false]) {
+    return GestureDetector(
+      onTap: onPressed,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        decoration: BoxDecoration(
+          color: isPrimary ? Colors.white : Colors.white.withOpacity(0.1),
           borderRadius: BorderRadius.circular(30),
-          side: primary
-              ? BorderSide.none
-              : BorderSide(color: Colors.white.withOpacity(0.8), width: 2),
+          border: isPrimary ? null : Border.all(color: Colors.white.withOpacity(0.3)),
+          boxShadow: isPrimary ? [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            )
+          ] : null,
         ),
-        elevation: primary ? 8 : 0,
-        shadowColor: Colors.black.withOpacity(0.2),
-        textStyle: const TextStyle(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              color: isPrimary ? const Color(0xFF667eea) : Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              text,
+              style: TextStyle(
+                color: isPrimary ? const Color(0xFF667eea) : Colors.white,
           fontWeight: FontWeight.bold,
-        ),
-      ).copyWith(
-        overlayColor: WidgetStateProperty.resolveWith(
-          (states) {
-            if (states.contains(WidgetState.hovered)) {
-              return primary
-                  ? const Color(0xFF667eea).withOpacity(0.1)
-                  : Colors.white.withOpacity(0.1);
-            }
-            return null;
-          },
+                fontSize: 16,
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildFeaturesGrid() {
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 1,
-      childAspectRatio: 3.5,
+  Widget _buildFeaturesSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 60),
+      padding: const EdgeInsets.all(24),
+      child: Column(
       children: [
-        _buildFeatureCard(
-          icon: Icons.pets,
-          title: 'Gestão de Pets',
-          description: 'Cadastre e gerencie informações dos seus pets',
-          delay: 0,
-        ),
-        _buildFeatureCard(
-          icon: Icons.shopping_bag,
-          title: 'Produtos Pet',
-          description: 'Encontre produtos de qualidade para seus pets',
-          delay: 100,
-        ),
-        _buildFeatureCard(
-          icon: Icons.medical_services,
-          title: 'Serviços Veterinários',
-          description: 'Acesse serviços veterinários especializados',
-          delay: 200,
-        ),
+          const Text(
+            'Por que escolher o PetConnect?',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 36,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 60),
+          Row(
+            children: [
+              Expanded(child: _buildFeatureCard(
+                Icons.pets_rounded,
+                'Gestão Completa',
+                'Cadastre e gerencie seus pets com facilidade. Acompanhe vacinas, consultas e cuidados.',
+                Colors.blue,
+              )),
+              const SizedBox(width: 24),
+              Expanded(child: _buildFeatureCard(
+                Icons.local_hospital_rounded,
+                'Serviços Veterinários',
+                'Encontre veterinários qualificados e agende consultas com praticidade.',
+                Colors.green,
+              )),
+              const SizedBox(width: 24),
+              Expanded(child: _buildFeatureCard(
+                Icons.shopping_bag_rounded,
+                'Produtos Pet',
+                'Compre ração, brinquedos e acessórios de qualidade em nossa rede de lojas.',
+                Colors.orange,
+              )),
       ],
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildFeatureCard({
-    required IconData icon,
-    required String title,
-    required String description,
-    required int delay,
-  }) {
-    return TweenAnimationBuilder<double>(
-      duration: Duration(milliseconds: 800 + delay),
-      tween: Tween(begin: 0.0, end: 1.0),
-      builder: (context, value, child) {
-        return Transform.translate(
-          offset: Offset(0, 30 * (1 - value)),
-          child: Opacity(
-            opacity: value,
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 16),
-              padding: const EdgeInsets.all(20),
+  Widget _buildFeatureCard(IconData icon, String title, String description, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: Colors.white.withOpacity(0.2)),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          )
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(icon, color: Colors.white, size: 40),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            description,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.8),
+              fontSize: 14,
+              height: 1.5,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHowItWorksSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 60),
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          const Text(
+            'Como Funciona',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 36,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 60),
+          Row(
+            children: [
+              Expanded(child: _buildStepCard('1', 'Cadastre-se', 'Crie sua conta gratuitamente e escolha seu perfil')),
+              const SizedBox(width: 24),
+              Expanded(child: _buildStepCard('2', 'Conecte-se', 'Encontre veterinários, lojas e outros tutores')),
+              const SizedBox(width: 24),
+              Expanded(child: _buildStepCard('3', 'Cuide', 'Gerencie a saúde e bem-estar do seu pet')),
+            ],
                   ),
                 ],
               ),
-              child: Row(
+    );
+  }
+
+  Widget _buildStepCard(String step, String title, String description) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+      ),
+      child: Column(
                 children: [
                   Container(
                     width: 60,
@@ -326,44 +485,186 @@ class _LandingPageState extends State<LandingPage> with TickerProviderStateMixin
                       color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(30),
                     ),
-                    child: Icon(
-                      icon,
+            child: Center(
+              child: Text(
+                step,
+                style: const TextStyle(
                       color: Colors.white,
-                      size: 28,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
                     ),
                   ),
-                  const SizedBox(width: 20),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
+          const SizedBox(height: 20),
                         Text(
                           title,
                           style: const TextStyle(
-                            fontSize: 18,
+              color: Colors.white,
+              fontSize: 20,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
                           ),
+            textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 4),
+          const SizedBox(height: 12),
                         Text(
                           description,
                           style: TextStyle(
+              color: Colors.white.withOpacity(0.8),
                             fontSize: 14,
-                            color: Colors.white.withOpacity(0.9),
-                            height: 1.3,
-                          ),
+              height: 1.5,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCTASection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 60),
+      padding: const EdgeInsets.all(48),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+      ),
+      child: Column(
+        children: [
+          const Text(
+            'Pronto para começar?',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Junte-se a milhares de tutores que já confiam no PetConnect',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.8),
+              fontSize: 18,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
+          _buildHeroButton(
+            'Criar Conta Gratuita',
+            Icons.person_add_rounded,
+            () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const RegisterScreen()),
+            ),
+            true,
                         ),
                       ],
+      ),
+    );
+  }
+
+  Widget _buildFooter() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          const Divider(color: Colors.white24),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.pets_rounded, color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'PetConnect',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
               ),
-            ),
+              Text(
+                '© 2024 PetConnect. Todos os direitos reservados.',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.7),
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+        ],
           ),
         );
-      },
-    );
   }
+
+  void _scrollToFeatures() {
+    // Implementar scroll para a seção de features
+  }
+}
+
+// Classes para as patinhas animadas
+class _Paw {
+  Offset position;
+  double scale;
+  double opacity;
+  double speed;
+
+  _Paw({
+    required this.position,
+    required this.scale,
+    required this.opacity,
+    required this.speed,
+  });
+  }
+
+class _PawPrintPainter extends CustomPainter {
+  final List<_Paw> paws;
+  final double animationValue;
+  final Random _random = Random();
+
+  _PawPrintPainter(this.paws, this.animationValue);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (var paw in paws) {
+      final paint = Paint()
+        ..color = Colors.white.withOpacity(paw.opacity * animationValue)
+        ..style = PaintingStyle.fill;
+      
+      final angle = _random.nextDouble() * 0.5 - 0.25;
+      final offset = Offset(
+        paw.position.dx + (animationValue * paw.speed * 15),
+        paw.position.dy - (animationValue * paw.speed * 8),
+      );
+
+      canvas.save();
+      canvas.translate(offset.dx, offset.dy);
+      canvas.rotate(angle);
+      canvas.scale(paw.scale);
+      
+      _drawIndividualPaw(canvas, Offset.zero, paint);
+      canvas.restore();
+    }
+  }
+
+  void _drawIndividualPaw(Canvas canvas, Offset center, Paint paint) {
+    // Palma
+    final mainPad = Rect.fromCenter(center: center, width: 20, height: 18);
+    canvas.drawRRect(RRect.fromRectAndRadius(mainPad, const Radius.circular(5)), paint);
+    // Dedos
+    canvas.drawCircle(center + const Offset(0, -14), 5, paint);
+    canvas.drawCircle(center + const Offset(-10, -8), 4.5, paint);
+    canvas.drawCircle(center + const Offset(10, -8), 4.5, paint);
+    canvas.drawCircle(center + const Offset(-6, 2), 4, paint);
+    canvas.drawCircle(center + const Offset(6, 2), 4, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _PawPrintPainter oldDelegate) => true;
 } 

@@ -10,6 +10,7 @@ class Product {
   final double price;
   final String? imageUrl;
   final String? measurementUnit;
+  final String? category;
   final int? ownerId;
   final String? ownerName;
   final String? ownerLocation;
@@ -24,6 +25,7 @@ class Product {
     required this.price,
     this.imageUrl,
     this.measurementUnit,
+    this.category,
     this.ownerId,
     this.ownerName,
     this.ownerLocation,

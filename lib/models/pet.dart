@@ -14,6 +14,7 @@ class Pet {
   final String? photoUrl;
   final String? activityLevel;
   final String? notes;
+  final bool? atendido;
 
   Pet({
     this.id,
@@ -26,6 +27,7 @@ class Pet {
     this.photoUrl,
     this.activityLevel,
     this.notes,
+    this.atendido,
   });
 
   factory Pet.fromJson(Map<String, dynamic> json) => _$PetFromJson(json);

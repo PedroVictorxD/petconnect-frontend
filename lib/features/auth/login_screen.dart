@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:math';
+import 'dart:ui';
 import '../../providers/auth_provider.dart';
-import '../../models/user.dart';
 import '../tutor/tutor_home_screen.dart';
 import '../veterinario/vet_home_screen.dart';
 import '../lojista/lojista_home_screen.dart';
@@ -14,14 +15,131 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
+
+  // Animações
+  late AnimationController _fadeController;
+  late AnimationController _slideController;
+  late AnimationController _scaleController;
+  late AnimationController _pawController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _pawAnimation;
+
+  // Animações dos campos
+  late AnimationController _emailFocusController;
+  late AnimationController _passwordFocusController;
+  late Animation<double> _emailFocusAnimation;
+  late Animation<double> _passwordFocusAnimation;
+
+  // Patinhas flutuantes
+  final List<_Paw> _paws = [];
+  final Random _random = Random();
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // Inicializar animações
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+    
+    _slideController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+    
+    _scaleController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+
+    _pawController = AnimationController(
+      duration: const Duration(milliseconds: 3000),
+      vsync: this,
+    );
+
+    _emailFocusController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+
+    _passwordFocusController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+
+    // Configurar animações
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
+    );
+    
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOutBack));
+    
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _scaleController, curve: Curves.elasticOut),
+    );
+
+    _pawAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _pawController, curve: Curves.easeInOut),
+    );
+
+    _emailFocusAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
+      CurvedAnimation(parent: _emailFocusController, curve: Curves.easeInOut),
+    );
+
+    _passwordFocusAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
+      CurvedAnimation(parent: _passwordFocusController, curve: Curves.easeInOut),
+    );
+
+    // Iniciar animações
+    _startAnimations();
+    _generatePaws();
+  }
+
+  void _startAnimations() async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    _fadeController.forward();
+    await Future.delayed(const Duration(milliseconds: 200));
+    _slideController.forward();
+    await Future.delayed(const Duration(milliseconds: 300));
+    _scaleController.forward();
+    _pawController.repeat();
+  }
+
+  void _generatePaws() {
+    for (int i = 0; i < 15; i++) {
+      _paws.add(_Paw(
+        position: Offset(
+          _random.nextDouble() * 400,
+          _random.nextDouble() * 800,
+        ),
+        scale: _random.nextDouble() * 0.5 + 0.3,
+        opacity: _random.nextDouble() * 0.3 + 0.1,
+        speed: _random.nextDouble() * 2 + 1,
+      ));
+    }
+  }
 
   @override
   void dispose() {
+    _fadeController.dispose();
+    _slideController.dispose();
+    _scaleController.dispose();
+    _pawController.dispose();
+    _emailFocusController.dispose();
+    _passwordFocusController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -53,6 +171,8 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
+    setState(() => _isLoading = true);
+
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final success = await authProvider.login(
       _emailController.text.trim(),
@@ -66,15 +186,24 @@ class _LoginScreenState extends State<LoginScreen> {
         SnackBar(
           content: Text(authProvider.error ?? 'Erro ao fazer login'),
           backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
     }
+
+    setState(() => _isLoading = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
+      body: Stack(
+        children: [
+          // Fundo animado com patinhas
+          Container(
+            width: double.infinity,
+            height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
@@ -82,40 +211,99 @@ class _LoginScreenState extends State<LoginScreen> {
             colors: [
               Color(0xFF667eea),
               Color(0xFF764ba2),
-            ],
+                  Color(0xFFf093fb),
+                ],
+                stops: [0.0, 0.6, 1.0],
           ),
         ),
-        child: SafeArea(
+            child: CustomPaint(
+              painter: _PawPrintPainter(_paws, _pawAnimation.value),
+            ),
+          ),
+          
+          // Conteúdo principal
+          SafeArea(
           child: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24.0),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 400),
-                child: Card(
-                  elevation: 8,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                  constraints: const BoxConstraints(maxWidth: 450),
+                  child: FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: SlideTransition(
+                      position: _slideAnimation,
+                      child: ScaleTransition(
+                        scale: _scaleAnimation,
+                        child: _buildLoginCard(),
+                      ),
+                    ),
                   ),
-                  child: Padding(
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoginCard() {
+    return Container(
                     padding: const EdgeInsets.all(32.0),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        color: Colors.white.withOpacity(0.1),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 20,
+            spreadRadius: 5,
+          )
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                     child: Form(
                       key: _formKey,
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Logo
-                          Container(
-                            width: 80,
-                            height: 80,
+                // Logo animado
+                TweenAnimationBuilder<double>(
+                  duration: const Duration(milliseconds: 1000),
+                  tween: Tween(begin: 0.0, end: 1.0),
+                  builder: (context, value, child) {
+                    return Transform.scale(
+                      scale: value,
+                      child: Container(
+                        width: 100,
+                        height: 100,
                             decoration: BoxDecoration(
-                              color: const Color(0xFF667eea),
-                              borderRadius: BorderRadius.circular(40),
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(50),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF667eea).withOpacity(0.3),
+                              blurRadius: 20,
+                              spreadRadius: 5,
+                            )
+                          ],
                             ),
                             child: const Icon(
-                              Icons.pets,
-                              size: 40,
+                          Icons.pets_rounded,
+                          size: 50,
                               color: Colors.white,
                             ),
+                      ),
+                    );
+                  },
                           ),
                           const SizedBox(height: 24),
                           
@@ -123,34 +311,40 @@ class _LoginScreenState extends State<LoginScreen> {
                           const Text(
                             'PetConnect',
                             style: TextStyle(
-                              fontSize: 28,
+                    fontSize: 32,
                               fontWeight: FontWeight.bold,
-                              color: Color(0xFF2d3748),
+                    color: Colors.white,
+                    letterSpacing: 1.2,
                             ),
                           ),
                           const SizedBox(height: 8),
-                          const Text(
+                Text(
                             'Faça login para continuar',
                             style: TextStyle(
                               fontSize: 16,
-                              color: Color(0xFF718096),
+                    color: Colors.white.withOpacity(0.8),
                             ),
                           ),
-                          const SizedBox(height: 32),
+                const SizedBox(height: 40),
 
-                          // Campo de email
-                          TextFormField(
+                // Campo de email animado
+                AnimatedBuilder(
+                  animation: _emailFocusAnimation,
+                  builder: (context, child) {
+                    return Transform.scale(
+                      scale: _emailFocusAnimation.value,
+                      child: _buildAnimatedTextField(
                             controller: _emailController,
+                        label: 'Email',
+                        icon: Icons.email_rounded,
                             keyboardType: TextInputType.emailAddress,
-                            decoration: InputDecoration(
-                              labelText: 'Email',
-                              prefixIcon: const Icon(Icons.email),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              filled: true,
-                              fillColor: Colors.grey[50],
-                            ),
+                        onFocusChange: (hasFocus) {
+                          if (hasFocus) {
+                            _emailFocusController.forward();
+                          } else {
+                            _emailFocusController.reverse();
+                          }
+                        },
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'Por favor, insira seu email';
@@ -161,20 +355,26 @@ class _LoginScreenState extends State<LoginScreen> {
                               return null;
                             },
                           ),
-                          const SizedBox(height: 16),
+                    );
+                  },
+                ),
+                const SizedBox(height: 20),
 
-                          // Campo de senha
-                          TextFormField(
+                // Campo de senha animado
+                AnimatedBuilder(
+                  animation: _passwordFocusAnimation,
+                  builder: (context, child) {
+                    return Transform.scale(
+                      scale: _passwordFocusAnimation.value,
+                      child: _buildAnimatedTextField(
                             controller: _passwordController,
+                        label: 'Senha',
+                        icon: Icons.lock_rounded,
                             obscureText: _obscurePassword,
-                            decoration: InputDecoration(
-                              labelText: 'Senha',
-                              prefixIcon: const Icon(Icons.lock),
                               suffixIcon: IconButton(
                                 icon: Icon(
-                                  _obscurePassword
-                                      ? Icons.visibility
-                                      : Icons.visibility_off,
+                            _obscurePassword ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+                            color: Colors.white70,
                                 ),
                                 onPressed: () {
                                   setState(() {
@@ -182,12 +382,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                   });
                                 },
                               ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              filled: true,
-                              fillColor: Colors.grey[50],
-                            ),
+                        onFocusChange: (hasFocus) {
+                          if (hasFocus) {
+                            _passwordFocusController.forward();
+                          } else {
+                            _passwordFocusController.reverse();
+                          }
+                        },
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'Por favor, insira sua senha';
@@ -197,69 +398,215 @@ class _LoginScreenState extends State<LoginScreen> {
                               }
                               return null;
                             },
-                          ),
-                          const SizedBox(height: 24),
-
-                          // Botão de login
-                          Consumer<AuthProvider>(
-                            builder: (context, authProvider, child) {
-                              return SizedBox(
-                                width: double.infinity,
-                                height: 50,
-                                child: ElevatedButton(
-                                  onPressed: authProvider.isLoading ? null : _login,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF667eea),
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  child: authProvider.isLoading
-                                      ? const SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                          ),
-                                        )
-                                      : const Text(
-                                          'Entrar',
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
                                 ),
                               );
                             },
                           ),
-                          const SizedBox(height: 16),
+                const SizedBox(height: 32),
+
+                // Botão de login animado
+                _buildAnimatedButton(),
+                const SizedBox(height: 24),
 
                           // Link para registro
-                          TextButton(
-                            onPressed: () {
-                              Navigator.pushNamed(context, '/register');
-                            },
-                            child: const Text(
-                              'Não tem uma conta? Cadastre-se',
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Não tem uma conta? ',
                               style: TextStyle(
-                                color: Color(0xFF667eea),
+                        color: Colors.white.withOpacity(0.8),
                                 fontSize: 14,
                               ),
                             ),
-                          ),
-                        ],
+                    GestureDetector(
+                      onTap: () => Navigator.pushNamed(context, '/register'),
+                      child: const Text(
+                        'Cadastre-se',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          decoration: TextDecoration.underline,
                       ),
                     ),
                   ),
-                ),
+                  ],
               ),
+              ],
             ),
           ),
         ),
       ),
     );
   }
+
+  Widget _buildAnimatedTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    bool obscureText = false,
+    Widget? suffixIcon,
+    TextInputType? keyboardType,
+    required Function(bool) onFocusChange,
+    String? Function(String?)? validator,
+  }) {
+    return Focus(
+      onFocusChange: onFocusChange,
+      child: TextFormField(
+        controller: controller,
+        obscureText: obscureText,
+        keyboardType: keyboardType,
+        style: const TextStyle(color: Colors.white, fontSize: 16),
+        decoration: InputDecoration(
+          labelText: label,
+          labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
+          prefixIcon: Icon(icon, color: Colors.white70),
+          suffixIcon: suffixIcon,
+          filled: true,
+          fillColor: Colors.white.withOpacity(0.1),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: Colors.white, width: 2),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: Colors.red, width: 2),
+          ),
+          focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: const BorderSide(color: Colors.red, width: 2),
+          ),
+          errorStyle: const TextStyle(color: Colors.red),
+        ),
+        validator: validator,
+      ),
+    );
+  }
+
+  Widget _buildAnimatedButton() {
+    return TweenAnimationBuilder<double>(
+      duration: const Duration(milliseconds: 800),
+      tween: Tween(begin: 0.0, end: 1.0),
+      builder: (context, value, child) {
+        return Transform.scale(
+          scale: value,
+          child: Container(
+            width: double.infinity,
+            height: 56,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF667eea).withOpacity(0.3),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
+                )
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: _isLoading ? null : _login,
+                child: Center(
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          'Entrar',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// Classes para as patinhas animadas
+class _Paw {
+  Offset position;
+  double scale;
+  double opacity;
+  double speed;
+
+  _Paw({
+    required this.position,
+    required this.scale,
+    required this.opacity,
+    required this.speed,
+  });
+}
+
+class _PawPrintPainter extends CustomPainter {
+  final List<_Paw> paws;
+  final double animationValue;
+  final Random _random = Random();
+
+  _PawPrintPainter(this.paws, this.animationValue);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (var paw in paws) {
+      final paint = Paint()
+        ..color = Colors.white.withOpacity(paw.opacity * animationValue)
+        ..style = PaintingStyle.fill;
+      
+      final angle = _random.nextDouble() * 0.5 - 0.25;
+      final offset = Offset(
+        paw.position.dx + (animationValue * paw.speed * 10),
+        paw.position.dy - (animationValue * paw.speed * 5),
+      );
+
+      canvas.save();
+      canvas.translate(offset.dx, offset.dy);
+      canvas.rotate(angle);
+      canvas.scale(paw.scale);
+      
+      _drawIndividualPaw(canvas, Offset.zero, paint);
+      canvas.restore();
+    }
+  }
+
+  void _drawIndividualPaw(Canvas canvas, Offset center, Paint paint) {
+    // Palma
+    final mainPad = Rect.fromCenter(center: center, width: 20, height: 18);
+    canvas.drawRRect(RRect.fromRectAndRadius(mainPad, const Radius.circular(5)), paint);
+    // Dedos
+    canvas.drawCircle(center + const Offset(0, -14), 5, paint);
+    canvas.drawCircle(center + const Offset(-10, -8), 4.5, paint);
+    canvas.drawCircle(center + const Offset(10, -8), 4.5, paint);
+    canvas.drawCircle(center + const Offset(-6, 2), 4, paint);
+    canvas.drawCircle(center + const Offset(6, 2), 4, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _PawPrintPainter oldDelegate) => true;
 } 

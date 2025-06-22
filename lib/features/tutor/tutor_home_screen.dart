@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'dart:math';
 import 'dart:ui';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter/rendering.dart';
 
 import '../../models/pet.dart';
 import '../../models/product.dart';
@@ -26,12 +25,12 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
   // --- VARIÁVEIS DE ESTADO ---
 
   // Formulário de Pet
-  final _petFormKey = GlobalKey<FormState>();
-  final _petNameController = TextEditingController();
-  final _petBreedController = TextEditingController();
-  final _petAgeController = TextEditingController();
-  final _petWeightController = TextEditingController();
-  final _petPhotoUrlController = TextEditingController();
+  final TextEditingController _petNameController = TextEditingController();
+  final TextEditingController _petBreedController = TextEditingController();
+  final TextEditingController _petAgeController = TextEditingController();
+  final TextEditingController _petWeightController = TextEditingController();
+  final TextEditingController _petPhotoUrlController = TextEditingController();
+  final GlobalKey<FormState> _petFormKey = GlobalKey<FormState>();
   String _petType = 'Cachorro';
   String _petActivityLevel = 'Médio';
 
@@ -42,11 +41,10 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
   String _calculatorActivityLevel = 'Médio';
   double? _dailyFoodAmount;
   Pet? _selectedPetForCalc;
-  bool _useSelectedPetData = false;
 
   // UI
   String _selectedSection = 'pets';
-  List<Offset> _pawPrints = [];
+  bool _showCalculator = false;
 
   // Animação do Fundo
   AnimationController? _pawAnimationController;
@@ -98,20 +96,20 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
 
   void _savePet(Pet? existingPet) async {
     if (_petFormKey.currentState!.validate()) {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final user = authProvider.currentUser;
       if (user != null && user.id != null) {
         
         final petData = Pet(
           id: existingPet?.id,
-          name: _petNameController.text,
-          breed: _petBreedController.text,
+      name: _petNameController.text,
+      breed: _petBreedController.text,
           age: int.parse(_petAgeController.text),
           weight: double.parse(_petWeightController.text),
           type: _petType,
-          activityLevel: _petActivityLevel,
-          photoUrl: _petPhotoUrlController.text,
-          tutor: {
+      activityLevel: _petActivityLevel,
+      photoUrl: _petPhotoUrlController.text,
+      tutor: {
             'id': user.id!,
             'name': user.name,
             'email': user.email,
@@ -207,9 +205,9 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
               onRefresh: _refreshData,
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                children: [
+              children: [
                   _buildHeader(user),
-                  const SizedBox(height: 24),
+                const SizedBox(height: 24),
                   _buildSectionSelector(),
                   const SizedBox(height: 24),
                   AnimatedSwitcher(
@@ -218,9 +216,9 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
                     child: LayoutBuilder(
                       builder: (context, constraints) => _buildCurrentSection(constraints: constraints)
                     ),
-                  ),
-                ],
-              ),
+                ),
+              ],
+            ),
             ),
           ),
           
@@ -234,13 +232,13 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
   Widget _buildHeader(User? user) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+        children: [
+                Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                 const Text(
                   'Bem-vindo(a) de volta,',
                   style: TextStyle(color: Colors.white70, fontSize: 16),
@@ -265,10 +263,10 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.pets, color: Colors.white, size: 28),
-            ),
-          ],
-        ),
-        const SizedBox(height: 20),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
         _buildStatsRow(),
       ],
     );
@@ -313,11 +311,11 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
       ),
     );
   }
-
+  
   Widget _buildSectionSelector() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
-      children: [
+        children: [
         _buildSelectorButton('pets', Icons.pets_rounded, 'Meus Pets'),
         _buildSelectorButton('products', Icons.shopping_bag, 'Produtos'),
         _buildSelectorButton('services', Icons.medical_services, 'Serviços'),
@@ -328,17 +326,17 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
   Widget _buildSelectorButton(String section, IconData icon, String label) {
     final bool isSelected = _selectedSection == section;
     return GestureDetector(
-      onTap: () => setState(() => _selectedSection = section),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
+        onTap: () => setState(() => _selectedSection = section),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         decoration: BoxDecoration(
           color: isSelected ? Colors.white.withOpacity(0.25) : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
-          children: [
+            children: [
             Icon(icon, color: Colors.white, size: 20),
             const SizedBox(width: 8),
             Text(
@@ -348,9 +346,9 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
                 fontWeight: FontWeight.bold,
               ),
             ),
-          ],
+            ],
+          ),
         ),
-      ),
     );
   }
   
@@ -501,7 +499,7 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
                 decoration: BoxDecoration(
                   image: DecorationImage(
                     image: NetworkImage(pet.photoUrl != null && pet.photoUrl!.isNotEmpty ? pet.photoUrl! : _getDefaultPetImage(pet.type)),
-                    fit: BoxFit.cover,
+                      fit: BoxFit.cover,
                   ),
                 ),
                 child: Container(
@@ -529,10 +527,10 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
                 child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
+                  children: [
                       _buildPetInfoRow(Icons.pets, '${pet.breed}, ${pet.type}'),
                       const SizedBox(height: 8),
                       _buildPetInfoRow(Icons.cake, '${pet.age} anos'),
@@ -577,7 +575,7 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 2, overflow: TextOverflow.ellipsis),
-                      const SizedBox(height: 4),
+                    const SizedBox(height: 4),
                       Text('R\$ ${product.price.toStringAsFixed(2)}', style: TextStyle(color: Theme.of(context).primaryColor, fontWeight: FontWeight.bold)),
                     ],
                   ),
@@ -599,7 +597,7 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
         elevation: 3,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+                      children: [
             Expanded(
               flex: 3,
               child: Image.network(
@@ -624,10 +622,10 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
                   ),
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
+                    ),
+                  ],
+                ),
+              ),
     );
   }
 
@@ -668,8 +666,8 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
     _petFormKey.currentState?.reset();
     _petNameController.text = pet?.name ?? '';
     _petBreedController.text = pet?.breed ?? '';
-    _petAgeController.text = pet?.age?.toString() ?? '';
-    _petWeightController.text = pet?.weight?.toString() ?? '';
+    _petAgeController.text = pet?.age.toString() ?? '';
+    _petWeightController.text = pet?.weight.toString() ?? '';
     _petPhotoUrlController.text = pet?.photoUrl ?? '';
     _petType = pet?.type ?? 'Cachorro';
     _petActivityLevel = pet?.activityLevel ?? 'Médio';
@@ -880,7 +878,6 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
     _calculatorWeightController.clear();
     _dailyFoodAmount = null;
     _selectedPetForCalc = null;
-    _useSelectedPetData = false;
     _calculatorPetType = 'Cachorro';
     _calculatorLifeStage = 'Adulto';
     _calculatorActivityLevel = 'Médio';
@@ -1051,7 +1048,7 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
           child: _dailyFoodAmount != null && _dailyFoodAmount! > 0
               ? Container(
                   key: ValueKey(_dailyFoodAmount),
-                  padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
@@ -1235,7 +1232,7 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
+            children: [
                 Stack(
                   alignment: Alignment.bottomLeft,
                   children: [
@@ -1282,11 +1279,11 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
                 ),
                 Padding(
                   padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
                       _buildDetailRow(Icons.pets, 'Raça', pet.breed ?? 'Não informado'),
-                      _buildDetailRow(Icons.cake, 'Idade', '${pet.age} anos'),
+                _buildDetailRow(Icons.cake, 'Idade', '${pet.age} anos'),
                       _buildDetailRow(Icons.fitness_center, 'Peso', '${pet.weight.toStringAsFixed(1)} kg'),
                       _buildDetailRow(Icons.directions_run, 'Atividade', pet.activityLevel ?? 'Não informado'),
                       const SizedBox(height: 20),
@@ -1335,11 +1332,11 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
       children: [
         _buildDetailRow(Icons.description, 'Descrição', product.description ?? 'Nenhuma descrição'),
         _buildDetailRow(Icons.price_change, 'Preço', 'R\$ ${product.price.toStringAsFixed(2)}'),
-        _buildDetailRow(Icons.store, 'Vendido por', product.ownerName ?? 'Não informado'),
+              _buildDetailRow(Icons.store, 'Vendido por', product.ownerName ?? 'Não informado'),
         _buildDetailRow(Icons.location_on, 'Localização', product.ownerLocation ?? 'Não informado'),
         if (product.ownerPhone != null)
           _buildWhatsAppButton(product.ownerPhone!),
-      ],
+            ],
     );
   }
 
@@ -1482,9 +1479,9 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           ),
-        ),
-      ),
-    );
+              ),
+            ),
+          );
   }
 
   void _launchWhatsApp(String phone) async {
