@@ -1,10 +1,16 @@
-2025/06/22-15:52:54.733 4 Reusing MANIFEST /tmp/flutter_tools.FOOTIR/flutter_tools_chrome_device.WLSMVF/Default/Session Storage/MANIFEST-000001
-2025/06/22-15:52:54.734 4 Recovering log #16
-2025/06/22-15:52:54.735 4 Reusing old log /tmp/flutter_tools.FOOTIR/flutter_tools_chrome_device.WLSMVF/Default/Session Storage/000016.log 
-2025/06/22-15:52:54.736 4 Delete type=2 #7
-2025/06/22-15:52:54.736 4 Delete type=2 #12
-2025/06/22-15:52:54.736 4 Delete type=0 #13
-2025/06/22-15:52:54.736 4 Delete type=2 #14
-2025/06/22-15:52:54.736 4 Delete type=0 #8
-2025/06/22-15:52:54.736 4 Delete type=2 #9
-2025/06/22-15:52:54.736 4 Delete type=0 #3
+2025/06/22-18:03:30.494 4 Reusing MANIFEST /tmp/flutter_tools.YVTANM/flutter_tools_chrome_device.SFSARL/Default/Session Storage/MANIFEST-000001
+2025/06/22-18:03:30.495 4 Recovering log #26
+2025/06/22-18:03:30.496 4 Reusing old log /tmp/flutter_tools.YVTANM/flutter_tools_chrome_device.SFSARL/Default/Session Storage/000026.log 
+2025/06/22-18:03:30.496 4 Delete type=2 #7
+2025/06/22-18:03:30.496 4 Delete type=2 #12
+2025/06/22-18:03:30.496 4 Delete type=0 #13
+2025/06/22-18:03:30.496 4 Delete type=2 #14
+2025/06/22-18:03:30.497 4 Delete type=2 #18
+2025/06/22-18:03:30.497 4 Delete type=0 #20
+2025/06/22-18:03:30.497 4 Delete type=0 #8
+2025/06/22-18:03:30.497 4 Delete type=0 #22
+2025/06/22-18:03:30.497 4 Delete type=2 #9
+2025/06/22-18:03:30.497 4 Delete type=2 #23
+2025/06/22-18:03:30.497 4 Delete type=0 #16
+2025/06/22-18:03:30.497 4 Delete type=2 #21
+2025/06/22-18:03:30.497 4 Delete type=0 #3

@@ -894,7 +894,7 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
                     color: Colors.black.withOpacity(0.2),
                     child: Center(
                       child: Icon(
-                        pet.type == 'Gato' ? Icons.pets : Icons.pets, // Mudar ícone se quiser
+                        pet.type == 'Gato' ? Icons.pets : Icons.pets,
                         color: Colors.white,
                         size: 50,
                       ),
@@ -905,7 +905,7 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
             ),
           ),
           Expanded(
-            flex: 4,
+            flex: 2,
             child: Padding(
               padding: const EdgeInsets.all(12.0),
               child: Column(
@@ -915,46 +915,23 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
                   Text(
                     pet.name,
                     style: const TextStyle(
-                      fontSize: 18,
                       fontWeight: FontWeight.bold,
+                      fontSize: 18,
                       color: Colors.white,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '${pet.breed ?? 'SRD'} • ${pet.age} anos',
-                    style: TextStyle(color: Colors.white.withOpacity(0.8)),
+                    style: TextStyle(color: Colors.white.withOpacity(0.7)),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   Text(
                     'Tutor: ${pet.tutor?['name'] ?? 'Não informado'}',
                     style: TextStyle(color: Colors.white.withOpacity(0.7)),
-                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                  const Spacer(),
-                   ActionChip(
-                    avatar: Icon(
-                      pet.atendido ?? false ? Icons.check_circle : Icons.hourglass_empty,
-                      color: pet.atendido ?? false ? Colors.greenAccent : Colors.orangeAccent,
-                    ),
-                    label: Text(
-                      pet.atendido ?? false ? 'Atendido' : 'Aguardando',
-                      style: TextStyle(
-                        color: pet.atendido ?? false ? Colors.greenAccent : Colors.orangeAccent,
-                      ),
-                    ),
-                    backgroundColor: (pet.atendido ?? false ? Colors.green : Colors.orange).withOpacity(0.2),
-                    shape: StadiumBorder(
-                      side: BorderSide(
-                        color: (pet.atendido ?? false ? Colors.green : Colors.orange).withOpacity(0.5),
-                      ),
-                    ),
-            ),
-          ],
-        ),
+                ],
+              ),
             ),
           ),
         ],

@@ -294,7 +294,12 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
         controller: _locationController,
         label: 'Localização',
         icon: Icons.location_on_outlined,
-        validator: (v) => (v == null || v.isEmpty) ? 'Campo obrigatório' : null,
+        validator: (v) {
+          if (v == null || v.trim().isEmpty) {
+            return 'Campo obrigatório';
+          }
+          return null;
+        },
       ),
     ];
 

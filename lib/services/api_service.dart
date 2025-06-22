@@ -311,7 +311,7 @@ class ApiService {
     if (product.id == null) return null;
     try {
       final response = await http.put(
-        Uri.parse('$baseUrl/api/admin/products/${product.id}'),
+        Uri.parse('$baseUrl/api/products/${product.id}'),
         headers: _headers,
         body: jsonEncode(product.toJson()),
       );
@@ -352,7 +352,7 @@ class ApiService {
       }
       return [];
     } catch (e) {
-      print('Erro ao buscar serviços: $e');
+      print('Erro ao buscar serviços veterinários: $e');
       return [];
     }
   }
@@ -364,13 +364,12 @@ class ApiService {
         headers: _headers,
         body: jsonEncode(service.toJson()),
       );
-
       if (response.statusCode == 200) {
         return VetService.fromJson(jsonDecode(response.body));
       }
       return null;
     } catch (e) {
-      print('Erro ao criar serviço: $e');
+      print('Erro ao criar serviço veterinário: $e');
       return null;
     }
   }
@@ -379,7 +378,7 @@ class ApiService {
     if (service.id == null) return null;
     try {
       final response = await http.put(
-        Uri.parse('$baseUrl/api/admin/services/${service.id}'),
+        Uri.parse('$baseUrl/api/services/${service.id}'),
         headers: _headers,
         body: jsonEncode(service.toJson()),
       );
@@ -388,7 +387,7 @@ class ApiService {
       }
       return null;
     } catch (e) {
-      print('Erro ao atualizar serviço: $e');
+      print('Erro ao atualizar serviço veterinário: $e');
       return null;
     }
   }
@@ -401,7 +400,7 @@ class ApiService {
       );
       return response.statusCode == 204;
     } catch (e) {
-      print('Erro ao deletar serviço: $e');
+      print('Erro ao deletar serviço veterinário: $e');
       return false;
     }
   }
