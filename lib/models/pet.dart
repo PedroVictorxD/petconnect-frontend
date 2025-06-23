@@ -11,9 +11,17 @@ class Pet {
   final int age;
   final double weight;
   final Map<String, dynamic>? tutor; // Agora tutor é um objeto com id
+  
+  @JsonKey(name: 'tutorId', includeIfNull: false)
+  final int? tutorId;
+
   final String? photoUrl;
   final String? activityLevel;
   final String? notes;
+  final bool? atendido;
+  final int? ownerId;
+  final String? ownerName;
+  final String? ownerPhone;
 
   Pet({
     this.id,
@@ -23,9 +31,14 @@ class Pet {
     required this.age,
     required this.weight,
     this.tutor,
+    this.tutorId,
     this.photoUrl,
     this.activityLevel,
     this.notes,
+    this.atendido,
+    this.ownerId,
+    this.ownerName,
+    this.ownerPhone,
   });
 
   factory Pet.fromJson(Map<String, dynamic> json) => _$PetFromJson(json);

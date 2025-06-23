@@ -1,0 +1,31 @@
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+Pet _$PetFromJson(Map<String, dynamic> json) => Pet(
+  id: (json['id'] as num?)?.toInt(),
+  name: json['name'] as String,
+  type: json['type'] as String,
+  breed: json['breed'] as String?,
+  age: (json['age'] as num).toInt(),
+  weight: (json['weight'] as num).toDouble(),
+  tutor: json['tutor'] as Map<String, dynamic>?,
+  photoUrl: json['photoUrl'] as String?,
+  activityLevel: json['activityLevel'] as String?,
+  notes: json['notes'] as String?,
+  atendido: json['atendido'] as bool?,
+);
+
+Map<String, dynamic> _$PetToJson(Pet instance) => <String, dynamic>{
+  'id': instance.id,
+  'name': instance.name,
+  'type': instance.type,
+  'breed': instance.breed,
+  'age': instance.age,
+  'weight': instance.weight,
+  'tutor': instance.tutor,
+  'photoUrl': instance.photoUrl,
+  'activityLevel': instance.activityLevel,
+  'notes': instance.notes,
+  'atendido': instance.atendido,
+};

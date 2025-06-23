@@ -275,7 +275,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> with TickerProviderSt
         DataCell(Text(pet.tutor?['name'] ?? 'Não informado')),
         DataCell(Row(
           children: [
-            IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteItem(context, 'pet', pet.id!, (id) => Provider.of<DataProvider>(context, listen: false).deletePet(id))),
+            IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _deleteItem(context, 'pet', pet.id!, (id) => Provider.of<DataProvider>(context, listen: false).deletePetFromAdmin(id))),
           ],
         )),
       ])).toList(),

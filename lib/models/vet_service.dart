@@ -8,6 +8,7 @@ class VetService {
   final String name;
   final String? description;
   final double price;
+  final String? imageUrl;
   final int? ownerId;
   final String? ownerName;
   final String? ownerLocation;
@@ -22,6 +23,7 @@ class VetService {
     required this.name,
     this.description,
     required this.price,
+    this.imageUrl,
     this.ownerId,
     this.ownerName,
     this.ownerLocation,

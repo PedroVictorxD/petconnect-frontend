@@ -1,0 +1,37 @@
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+User _$UserFromJson(Map<String, dynamic> json) => User(
+  id: (json['id'] as num?)?.toInt(),
+  name: json['name'] as String,
+  email: json['email'] as String,
+  password: json['password'] as String,
+  phone: json['phone'] as String?,
+  location: json['location'] as String?,
+  createdAt: json['createdAt'] as String?,
+  updatedAt: json['updatedAt'] as String?,
+  crmv: json['crmv'] as String?,
+  cnpj: json['cnpj'] as String?,
+  responsibleName: json['responsibleName'] as String?,
+  storeType: json['storeType'] as String?,
+  operatingHours: json['operatingHours'] as String?,
+  dtype: json['dtype'] as String?,
+);
+
+Map<String, dynamic> _$UserToJson(User instance) => <String, dynamic>{
+  if (instance.id case final value?) 'id': value,
+  'name': instance.name,
+  'email': instance.email,
+  'password': instance.password,
+  if (instance.phone case final value?) 'phone': value,
+  if (instance.location case final value?) 'location': value,
+  if (instance.createdAt case final value?) 'createdAt': value,
+  if (instance.updatedAt case final value?) 'updatedAt': value,
+  if (instance.crmv case final value?) 'crmv': value,
+  if (instance.cnpj case final value?) 'cnpj': value,
+  if (instance.responsibleName case final value?) 'responsibleName': value,
+  if (instance.storeType case final value?) 'storeType': value,
+  if (instance.operatingHours case final value?) 'operatingHours': value,
+  if (instance.dtype case final value?) 'dtype': value,
+};
