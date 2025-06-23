@@ -772,12 +772,66 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
                     child: Image.network(
                       service.imageUrl!,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) =>
-                          const Icon(Icons.medical_services, size: 60, color: Colors.white30),
+                      width: double.infinity,
+                      height: double.infinity,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                    : null,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Carregando...',
+                                style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        print('Error loading service image: $error');
+                        print('URL: ${service.imageUrl}');
+                        return Container(
+                          color: Colors.black.withOpacity(0.2),
+                          child: const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.medical_services, size: 60, color: Colors.white30),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Imagem não carregou',
+                                  style: TextStyle(color: Colors.white30, fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   )
-                : const Center(
-                    child: Icon(Icons.medical_services, size: 60, color: Colors.white30),
+                : Container(
+                    color: Colors.black.withOpacity(0.2),
+                    child: const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.medical_services, size: 60, color: Colors.white30),
+                          SizedBox(height: 8),
+                          Text(
+                            'Sem imagem',
+                            style: TextStyle(color: Colors.white30, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
           ),
           Padding(
@@ -847,26 +901,81 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
           children: [
             Expanded(
               flex: 3,
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-                child: Image.network(
-                  pet.photoUrl ?? '',
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
+              child: (pet.photoUrl != null && pet.photoUrl!.isNotEmpty)
+                  ? ClipRRect(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                      child: Image.network(
+                        pet.photoUrl!,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                CircularProgressIndicator(
+                                  value: loadingProgress.expectedTotalBytes != null
+                                      ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                      : null,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Carregando...',
+                                  style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          print('Error loading pet image: $error');
+                          print('URL: ${pet.photoUrl}');
+                          return Container(
+                            color: Colors.black.withOpacity(0.2),
+                            child: const Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.pets,
+                                    color: Colors.white,
+                                    size: 50,
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Imagem não carregou',
+                                    style: TextStyle(color: Colors.white30, fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    )
+                  : Container(
                       color: Colors.black.withOpacity(0.2),
-                      child: Center(
-                        child: Icon(
-                          pet.type == 'Gato' ? Icons.pets : Icons.pets,
-                          color: Colors.white,
-                          size: 50,
+                      child: const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.pets,
+                              color: Colors.white,
+                              size: 50,
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Sem imagem',
+                              style: TextStyle(color: Colors.white30, fontSize: 12),
+                            ),
+                          ],
                         ),
                       ),
-                    );
-                  },
-                ),
-              ),
+                    ),
             ),
             Expanded(
               flex: 2,
@@ -891,7 +1000,7 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Tutor: ${pet.tutor?['name'] ?? 'Não informado'}',
+                      'Tutor: ${pet.ownerName ?? 'Não informado'}',
                       style: TextStyle(color: Colors.white.withOpacity(0.7)),
                     ),
                   ],

@@ -418,10 +418,25 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
                     width: 150,
                     height: 150,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => const Icon(
-                      Icons.pets,
-                      size: 150,
-                      color: Colors.grey),
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Center(
+                        child: CircularProgressIndicator(
+                          value: loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                              : null,
+                          color: Colors.white,
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      print('Error loading pet image: $error');
+                      return const Icon(
+                        Icons.pets,
+                        size: 150,
+                        color: Colors.grey,
+                      );
+                    },
                   ),
                 ),
               ),
@@ -457,10 +472,51 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
                     width: 150,
                     height: 150,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => const Icon(
-                        Icons.shopping_bag,
-                        size: 150,
-                        color: Colors.grey),
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                  : null,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Carregando...',
+                              style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      print('Error loading product image: $error');
+                      print('URL: ${product.imageUrl}');
+                      return Container(
+                        color: Colors.black.withOpacity(0.2),
+                        child: const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.shopping_bag,
+                                size: 80,
+                                color: Colors.white30,
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'Imagem não carregou',
+                                style: TextStyle(color: Colors.white30, fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),
@@ -513,13 +569,54 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
                   borderRadius: BorderRadius.circular(12),
                   child: Image.network(
                     service.imageUrl!,
-                    width: 150,
-                    height: 150,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => const Icon(
-                        Icons.medical_services,
-                        size: 150,
-                        color: Colors.grey),
+                    width: double.infinity,
+                    height: double.infinity,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                  : null,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Carregando...',
+                              style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      print('Error loading service image: $error');
+                      print('URL: ${service.imageUrl}');
+                      return Container(
+                        color: Colors.black.withOpacity(0.2),
+                        child: const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.medical_services,
+                                size: 80,
+                                color: Colors.white30,
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'Imagem não carregou',
+                                style: TextStyle(color: Colors.white30, fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),
@@ -791,16 +888,73 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
                   ? Image.network(
                       pet.photoUrl!,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => const Icon(
-                        Icons.pets,
-                        size: 80,
-                        color: Colors.white30,
-                      ),
+                      width: double.infinity,
+                      height: double.infinity,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                    : null,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Carregando...',
+                                style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        print('Error loading pet image: $error');
+                        print('URL: ${pet.photoUrl}');
+                        return Container(
+                          color: Colors.black.withOpacity(0.2),
+                          child: const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.pets,
+                                  size: 80,
+                                  color: Colors.white30,
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Imagem não carregou',
+                                  style: TextStyle(color: Colors.white30, fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     )
-                  : const Icon(
-                      Icons.pets,
-                      size: 80,
-                      color: Colors.white30,
+                  : Container(
+                      color: Colors.black.withOpacity(0.2),
+                      child: const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.pets,
+                              size: 80,
+                              color: Colors.white30,
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Sem imagem',
+                              style: TextStyle(color: Colors.white30, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
             ),
             Padding(
@@ -868,16 +1022,73 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
                   ? Image.network(
                       product.imageUrl!,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => const Icon(
-                        Icons.shopping_bag,
-                        size: 80,
-                        color: Colors.white30,
-                      ),
+                      width: double.infinity,
+                      height: double.infinity,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                    : null,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Carregando...',
+                                style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        print('Error loading product image: $error');
+                        print('URL: ${product.imageUrl}');
+                        return Container(
+                          color: Colors.black.withOpacity(0.2),
+                          child: const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.shopping_bag,
+                                  size: 80,
+                                  color: Colors.white30,
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Imagem não carregou',
+                                  style: TextStyle(color: Colors.white30, fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     )
-                  : const Icon(
-                      Icons.shopping_bag,
-                      size: 80,
-                      color: Colors.white30,
+                  : Container(
+                      color: Colors.black.withOpacity(0.2),
+                      child: const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.shopping_bag,
+                              size: 80,
+                              color: Colors.white30,
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Sem imagem',
+                              style: TextStyle(color: Colors.white30, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
             ),
             Padding(
@@ -948,16 +1159,73 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
                   ? Image.network(
                       service.imageUrl!,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => const Icon(
-                        Icons.medical_services,
-                        size: 80,
-                        color: Colors.white30,
-                      ),
+                      width: double.infinity,
+                      height: double.infinity,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                    : null,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Carregando...',
+                                style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        print('Error loading service image: $error');
+                        print('URL: ${service.imageUrl}');
+                        return Container(
+                          color: Colors.black.withOpacity(0.2),
+                          child: const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.medical_services,
+                                  size: 80,
+                                  color: Colors.white30,
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Imagem não carregou',
+                                  style: TextStyle(color: Colors.white30, fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     )
-                  : const Icon(
-                      Icons.medical_services,
-                      size: 80,
-                      color: Colors.white30,
+                  : Container(
+                      color: Colors.black.withOpacity(0.2),
+                      child: const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.medical_services,
+                              size: 80,
+                              color: Colors.white30,
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Sem imagem',
+                              style: TextStyle(color: Colors.white30, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
             ),
             Padding(
