@@ -491,9 +491,6 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
   }
 
   Widget _buildHeader(AuthProvider authProvider, DataProvider dataProvider) {
-    final servicesCount = dataProvider.vetServices.length;
-    final attendedPetsCount = dataProvider.pets.where((p) => p.atendido ?? false).length;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -544,7 +541,7 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
 
   Widget _buildDashboardMetrics(DataProvider dataProvider) {
     final servicesCount = dataProvider.vetServices.length;
-    final attendedPetsCount = dataProvider.pets.where((p) => p.atendido ?? false).length;
+    final totalPetsCount = dataProvider.pets.length;
 
     return Row(
       children: [
@@ -559,8 +556,8 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
         Expanded(
           child: _buildMetricCard(
             icon: Icons.pets,
-            label: 'Pets Atendidos',
-            value: attendedPetsCount.toString(),
+            label: 'Pets',
+            value: totalPetsCount.toString(),
           ),
         ),
       ],
@@ -918,6 +915,32 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
                           ),
                         ],
                       ),
+                      if (pet.ownerPhone != null && pet.ownerPhone!.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                pet.ownerPhone!,
+                                style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.8)),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.message,
+                                color: Colors.green,
+                                size: 16,
+                              ),
+                              onPressed: () => _launchWhatsApp(pet.ownerPhone!),
+                              tooltip: 'Contatar tutor',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),

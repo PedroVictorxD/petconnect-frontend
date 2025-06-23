@@ -130,10 +130,15 @@ class DataProvider extends ChangeNotifier {
       // Aguarda todas as chamadas terminarem
       final results = await Future.wait([petsData, productsData, servicesData]);
 
-      // Atribui os resultados de forma segura
-      _pets = results[0] as List<Pet>;
-      _products = results[1] as List<Product>;
-      _vetServices = results[2] as List<VetService>;
+      // Atribui os resultados de forma segura e limita a 4 itens
+      List<Pet> pets = results[0] as List<Pet>;
+      List<Product> products = results[1] as List<Product>;
+      List<VetService> services = results[2] as List<VetService>;
+
+      // Limita a 4 itens e adiciona imagens padrão se necessário
+      _pets = _limitAndAddDefaultImages(pets, 4);
+      _products = _limitAndAddDefaultProductImages(products, 4);
+      _vetServices = _limitAndAddDefaultServiceImages(services, 4);
 
     } catch (e) {
       _error = 'Erro ao carregar os dados: $e';
@@ -142,6 +147,103 @@ class DataProvider extends ChangeNotifier {
       // Notifica a UI que o carregamento terminou (com sucesso ou erro)
       notifyListeners();
     }
+  }
+
+  // Método para limitar pets e adicionar imagens padrão
+  List<Pet> _limitAndAddDefaultImages(List<Pet> pets, int limit) {
+    final limitedPets = pets.take(limit).toList();
+    
+    // URLs de imagens padrão para pets
+    final defaultPetImages = [
+      'https://images.unsplash.com/photo-1552053831-71594a27632d?w=400&h=400&fit=crop', // Cachorro fofo
+      'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=400&h=400&fit=crop', // Gato fofo
+      'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?w=400&h=400&fit=crop', // Cachorro brincalhão
+      'https://images.unsplash.com/photo-1513360371669-4adf3dd7dff8?w=400&h=400&fit=crop', // Gato elegante
+    ];
+
+    for (int i = 0; i < limitedPets.length; i++) {
+      if (limitedPets[i].photoUrl == null || limitedPets[i].photoUrl!.isEmpty) {
+        limitedPets[i] = Pet(
+          id: limitedPets[i].id,
+          name: limitedPets[i].name,
+          type: limitedPets[i].type,
+          breed: limitedPets[i].breed,
+          age: limitedPets[i].age,
+          weight: limitedPets[i].weight,
+          tutor: limitedPets[i].tutor,
+          tutorId: limitedPets[i].tutorId,
+          photoUrl: defaultPetImages[i % defaultPetImages.length],
+          activityLevel: limitedPets[i].activityLevel,
+          notes: limitedPets[i].notes,
+          atendido: limitedPets[i].atendido,
+          ownerId: limitedPets[i].ownerId,
+          ownerName: limitedPets[i].ownerName,
+          ownerPhone: limitedPets[i].ownerPhone,
+        );
+      }
+    }
+    
+    return limitedPets;
+  }
+
+  // Método para limitar produtos e adicionar imagens padrão
+  List<Product> _limitAndAddDefaultProductImages(List<Product> products, int limit) {
+    final limitedProducts = products.take(limit).toList();
+    
+    // URLs de imagens padrão para produtos pet
+    final defaultProductImages = [
+      'https://images.unsplash.com/photo-1601758228041-3caa5d9c6c5f?w=400&h=400&fit=crop', // Ração premium
+      'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=400&h=400&fit=crop', // Brinquedos
+      'https://images.unsplash.com/photo-1601758228041-3caa5d9c6c5f?w=400&h=400&fit=crop', // Petiscos
+      'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?w=400&h=400&fit=crop', // Acessórios
+    ];
+
+    for (int i = 0; i < limitedProducts.length; i++) {
+      if (limitedProducts[i].imageUrl == null || limitedProducts[i].imageUrl!.isEmpty) {
+        limitedProducts[i] = Product(
+          id: limitedProducts[i].id,
+          name: limitedProducts[i].name,
+          description: limitedProducts[i].description,
+          price: limitedProducts[i].price,
+          imageUrl: defaultProductImages[i % defaultProductImages.length],
+          ownerId: limitedProducts[i].ownerId,
+          ownerName: limitedProducts[i].ownerName,
+          ownerPhone: limitedProducts[i].ownerPhone,
+        );
+      }
+    }
+    
+    return limitedProducts;
+  }
+
+  // Método para limitar serviços e adicionar imagens padrão
+  List<VetService> _limitAndAddDefaultServiceImages(List<VetService> services, int limit) {
+    final limitedServices = services.take(limit).toList();
+    
+    // URLs de imagens padrão para serviços veterinários
+    final defaultServiceImages = [
+      'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=400&h=400&fit=crop', // Consulta veterinária
+      'https://images.unsplash.com/photo-1576201836106-db1758fd1c97?w=400&h=400&fit=crop', // Vacinação
+      'https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=400&h=400&fit=crop', // Cirurgia
+      'https://images.unsplash.com/photo-1576201836106-db1758fd1c97?w=400&h=400&fit=crop', // Exames
+    ];
+
+    for (int i = 0; i < limitedServices.length; i++) {
+      if (limitedServices[i].imageUrl == null || limitedServices[i].imageUrl!.isEmpty) {
+        limitedServices[i] = VetService(
+          id: limitedServices[i].id,
+          name: limitedServices[i].name,
+          description: limitedServices[i].description,
+          price: limitedServices[i].price,
+          imageUrl: defaultServiceImages[i % defaultServiceImages.length],
+          ownerId: limitedServices[i].ownerId,
+          ownerName: limitedServices[i].ownerName,
+          ownerPhone: limitedServices[i].ownerPhone,
+        );
+      }
+    }
+    
+    return limitedServices;
   }
 
   // --- MÉTODOS DE MANIPULAÇÃO DE DADOS REATORIZADOS ---

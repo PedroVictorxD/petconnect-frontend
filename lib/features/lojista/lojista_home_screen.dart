@@ -933,6 +933,32 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
                           ),
                         ],
                       ),
+                      if (pet.ownerPhone != null && pet.ownerPhone!.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                pet.ownerPhone!,
+                                style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.8)),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.message,
+                                color: Colors.green,
+                                size: 16,
+                              ),
+                              onPressed: () => _launchWhatsApp(pet.ownerPhone!),
+                              tooltip: 'Contatar tutor',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          ],
+                        ),
+                      ],
                 ],
               ),
             ),

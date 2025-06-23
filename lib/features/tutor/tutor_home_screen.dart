@@ -1017,7 +1017,7 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
                                 ),
                                 IconButton(
                                   icon: const Icon(
-                                    Icons.whatsapp,
+                                    Icons.message,
                                     color: Colors.green,
                                     size: 16,
                                   ),
@@ -1184,14 +1184,6 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
                     icon: const Icon(Icons.visibility, color: Colors.white70),
                     onPressed: () => _showProductDetailsDialog(product),
                     tooltip: 'Visualizar',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.add_shopping_cart, color: Colors.white70),
-                    onPressed: () {
-                      // Lógica para adicionar ao carrinho, se aplicável
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Funcionalidade de carrinho não implementada.')));
-                    },
-                    tooltip: 'Adicionar ao carrinho',
                   ),
                 ],
               ),
@@ -1882,6 +1874,35 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
       dropdownColor: const Color(0xFF6A5ACD),
       decoration: _inputDecoration(labelText, icon),
     );
+  }
+
+  Future<void> _openWhatsApp(String phone) async {
+    final cleanPhone = phone.replaceAll(RegExp(r'[^\d]'), '');
+    final url = 'https://wa.me/55$cleanPhone';
+    
+    try {
+      if (await canLaunchUrl(Uri.parse(url))) {
+        await launchUrl(Uri.parse(url));
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Não foi possível abrir o WhatsApp'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erro ao abrir WhatsApp: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
 
