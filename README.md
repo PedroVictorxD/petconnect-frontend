@@ -595,7 +595,7 @@ jobs:
 ### Contato
 - **Desenvolvedor**: Pedro Victor
 - **GitHub**: [PedroVictorxD](https://github.com/PedroVictorxD)
-- **Email**: [Seu email aqui]
+- **Email**: jessevvv63@gmail.com
 
 ## 📄 Licença
 

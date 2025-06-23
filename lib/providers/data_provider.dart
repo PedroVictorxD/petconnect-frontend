@@ -160,9 +160,9 @@ class DataProvider extends ChangeNotifier {
       return false;
     } catch (e) {
       _error = 'Erro de conexão ao criar o pet: $e';
-      notifyListeners();
-      return false;
-    }
+        notifyListeners();
+        return false;
+      }
   }
 
   /// Deleta um pet e recarrega todos os dados.

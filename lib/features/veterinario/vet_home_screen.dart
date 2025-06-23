@@ -397,10 +397,12 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Painel do Veterinário"),
+        backgroundColor: const Color(0xFF667eea),
+        elevation: 0,
+        title: const Text("Painel do Veterinário", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout, color: Colors.white),
             onPressed: () {
               Provider.of<AuthProvider>(context, listen: false).logout();
               Navigator.of(context).pushReplacementNamed('/login');
@@ -499,29 +501,29 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
           children: [
             Container(
               padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
+              decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(12),
-      ),
+              ),
               child: const Icon(
                 Icons.local_hospital_rounded,
                 color: Colors.white,
-              size: 30,
+                size: 30,
+              ),
             ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
                     'Olá, Dr(a). ${authProvider.currentUser?.name ?? 'Veterinário'}!',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
-                ),
                   const SizedBox(height: 4),
                   Text(
                     'CRMV: ${authProvider.currentUser?.crmv ?? 'Não informado'}',
@@ -529,15 +531,8 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
                       color: Colors.white.withOpacity(0.8),
                     ),
                   ),
-              ],
-            ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.logout, color: Colors.white),
-              onPressed: () {
-                Provider.of<AuthProvider>(context, listen: false).logout();
-                Navigator.of(context).pushReplacementNamed('/login');
-              },
+                ],
+              ),
             ),
           ],
         ),
@@ -835,7 +830,7 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
                   ),
           ),
           Padding(
-            padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.all(12.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -868,7 +863,7 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
           ),
           Container(
             color: Colors.black.withOpacity(0.2),
-            child: Row(
+        child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 IconButton(
@@ -981,10 +976,10 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
               flex: 2,
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
                     Text(
                       pet.name,
                       style: const TextStyle(
@@ -993,19 +988,19 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
                         color: Colors.white,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
+                  const SizedBox(height: 4),
+                  Text(
                       '${pet.breed ?? 'SRD'} • ${pet.age} anos',
                       style: TextStyle(color: Colors.white.withOpacity(0.7)),
                     ),
                     const SizedBox(height: 4),
-                    Text(
+                  Text(
                       'Tutor: ${pet.ownerName ?? 'Não informado'}',
                       style: TextStyle(color: Colors.white.withOpacity(0.7)),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
+            ),
             ),
           ],
         ),

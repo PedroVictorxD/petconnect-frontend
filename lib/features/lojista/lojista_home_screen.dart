@@ -285,10 +285,10 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
   Widget _buildProductForm() {
     return Form(
       key: _productFormKey,
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
             _buildTextFormField(
               controller: _productNameController,
               labelText: 'Nome do Produto',
@@ -320,10 +320,10 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
               controller: _productCategoryController,
               labelText: 'Categoria',
               icon: Icons.category,
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 
@@ -365,10 +365,12 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Painel do Lojista"),
+        backgroundColor: const Color(0xFF667eea),
+        elevation: 0,
+        title: const Text("Painel do Lojista", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout, color: Colors.white),
             onPressed: () {
               Provider.of<AuthProvider>(context, listen: false).logout();
               Navigator.of(context).pushReplacementNamed('/login');
@@ -464,29 +466,29 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
           children: [
             Container(
               padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
+              decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(12),
-      ),
+              ),
               child: const Icon(
                 Icons.store,
                 color: Colors.white,
                 size: 30,
               ),
             ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Olá, ${authProvider.currentUser?.name ?? 'Lojista'}!',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Olá, ${authProvider.currentUser?.name ?? 'Lojista'}!',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
-                ),
                   const SizedBox(height: 4),
                   Text(
                     'Sua loja de produtos para pets',
@@ -496,13 +498,6 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
                   ),
                 ],
               ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.logout, color: Colors.white),
-              onPressed: () {
-                Provider.of<AuthProvider>(context, listen: false).logout();
-                Navigator.of(context).pushReplacementNamed('/login');
-              },
             ),
           ],
         ),
@@ -731,12 +726,12 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            child: (product.imageUrl != null && product.imageUrl!.isNotEmpty)
+              child: (product.imageUrl != null && product.imageUrl!.isNotEmpty)
                 ? ClipRRect(
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(16.0)),
                     child: Image.network(
-                      product.imageUrl!,
-                      fit: BoxFit.cover,
+                    product.imageUrl!,
+                    fit: BoxFit.cover,
                       width: double.infinity,
                       height: double.infinity,
                       loadingBuilder: (context, child, loadingProgress) {
@@ -940,12 +935,12 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
                           ],
                         ),
                       ),
-                    ),
             ),
-            Expanded(
+          ),
+          Expanded(
               flex: 4,
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,

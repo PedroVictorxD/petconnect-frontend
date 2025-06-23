@@ -57,11 +57,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> with TickerProviderSt
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout_rounded),
+            icon: const Icon(Icons.logout),
             onPressed: () {
               Provider.of<AuthProvider>(context, listen: false).logout();
               Navigator.of(context).pushReplacementNamed('/login');
             },
+            tooltip: 'Sair',
           ),
         ],
       ),

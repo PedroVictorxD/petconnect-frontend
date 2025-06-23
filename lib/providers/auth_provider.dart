@@ -20,25 +20,35 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoggedIn => _currentUser != null;
 
   AuthProvider() {
-    _loadUserFromStorage();
+    _initializeAuth();
+  }
+
+  Future<void> _initializeAuth() async {
+    await _loadUserFromStorage();
   }
 
   Future<void> _loadUserFromStorage() async {
     try {
-    final prefs = await SharedPreferences.getInstance();
-    final userJson = prefs.getString('currentUser');
-    final token = prefs.getString('token');
-    final userType = prefs.getString('userType');
+      print('AuthProvider: Carregando dados da sessão...');
+      final prefs = await SharedPreferences.getInstance();
+      final userJson = prefs.getString('currentUser');
+      final token = prefs.getString('token');
+      final userType = prefs.getString('userType');
 
-    if (userJson != null && token != null && userType != null) {
-      _currentUser = User.fromJson(json.decode(userJson));
-      _token = token;
-      _userType = userType;
-      ApiService.setAuthToken(_token);
-      notifyListeners();
-    }
+      print('AuthProvider: Dados encontrados - User: ${userJson != null}, Token: ${token != null}, Type: $userType');
+
+      if (userJson != null && token != null && userType != null) {
+        _currentUser = User.fromJson(json.decode(userJson));
+        _token = token;
+        _userType = userType;
+        ApiService.setAuthToken(_token);
+        print('AuthProvider: Sessão restaurada com sucesso');
+        notifyListeners();
+      } else {
+        print('AuthProvider: Nenhuma sessão encontrada');
+      }
     } catch (e) {
-      print('Erro ao carregar dados da sessão: $e');
+      print('AuthProvider: Erro ao carregar dados da sessão: $e');
       // Se houver erro ao carregar, limpar dados corrompidos
       await _clearStoredData();
     }
@@ -198,15 +208,28 @@ class AuthProvider extends ChangeNotifier {
 
   // Validar sessão com chamada para o backend
   Future<bool> validateSessionWithBackend() async {
-    if (!isAuthenticated) return false;
+    if (!isAuthenticated) {
+      print('AuthProvider: Usuário não autenticado');
+      return false;
+    }
     
     try {
+      print('AuthProvider: Validando token com backend...');
       // Fazer uma chamada para um endpoint que requer autenticação
       // Se a chamada falhar com 401, significa que o token expirou
       final response = await ApiService.validateToken();
-      return response != null;
+      print('AuthProvider: Resposta da validação: $response');
+      
+      if (response == true) {
+        print('AuthProvider: Token válido');
+        return true;
+      } else {
+        print('AuthProvider: Token inválido');
+        await logout();
+        return false;
+      }
     } catch (e) {
-      print('Token inválido ou expirado: $e');
+      print('AuthProvider: Erro ao validar token: $e');
       await logout();
       return false;
     }

@@ -118,8 +118,8 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
     _petAgeController.clear();
     _petWeightController.clear();
     _petPhotoUrlController.clear();
-    setState(() {
-      _petType = 'Cachorro';
+    setState(() { 
+      _petType = 'Cachorro'; 
       _petActivityLevel = 'Médio';
     });
   }
@@ -231,6 +231,21 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF667eea),
+        elevation: 0,
+        title: const Text('Painel do Tutor', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+            onPressed: () {
+              Provider.of<AuthProvider>(context, listen: false).logout();
+              Navigator.pushReplacementNamed(context, '/login');
+            },
+            tooltip: 'Sair',
+          ),
+        ],
+      ),
       backgroundColor: const Color(0xFF667eea),
       body: Stack(
         children: [
@@ -459,10 +474,10 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
     _showAnimatedDialog(
       title: product.name,
       content: SingleChildScrollView(
-        child: Column(
+            child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
-          children: [
+              children: [
             if (product.imageUrl != null && product.imageUrl!.isNotEmpty)
               Center(
                 child: ClipRRect(
@@ -484,15 +499,15 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
                                   : null,
                               color: Colors.white,
                             ),
-                            const SizedBox(height: 8),
+                const SizedBox(height: 8),
                             Text(
                               'Carregando...',
                               style: TextStyle(color: Colors.white.withOpacity(0.7)),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
+                ),
+              ],
+            ),
+          );
+        },
                     errorBuilder: (context, error, stackTrace) {
                       print('Error loading product image: $error');
                       print('URL: ${product.imageUrl}');
@@ -596,7 +611,7 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
                     errorBuilder: (context, error, stackTrace) {
                       print('Error loading service image: $error');
                       print('URL: ${service.imageUrl}');
-                      return Container(
+    return Container(
                         color: Colors.black.withOpacity(0.2),
                         child: const Center(
                           child: Column(
@@ -667,7 +682,7 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
             child: RichText(
               text: TextSpan(
                 style: const TextStyle(fontSize: 16, color: Colors.white),
-                children: [
+              children: [
                   TextSpan(
                     text: '$label: ',
                     style: TextStyle(
@@ -688,11 +703,10 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
   Widget _buildHeader() {
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.currentUser;
-
     return Padding(
-      padding: const EdgeInsets.only(top: 50.0, left: 20, right: 20),
+      padding: const EdgeInsets.only(top: 30.0, left: 20, right: 20),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
           Expanded(
             child: Column(
@@ -711,14 +725,6 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
                 ),
               ],
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: () {
-              Provider.of<AuthProvider>(context, listen: false).logout();
-              Navigator.pushReplacementNamed(context, '/login');
-            },
-            tooltip: 'Sair',
           ),
         ],
       ),
@@ -745,7 +751,7 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: Colors.white.withOpacity(0.1),
           borderRadius: BorderRadius.circular(15),
@@ -803,7 +809,7 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
       ),
     );
   }
-
+  
   Widget _buildServiceInfoCard(DataProvider dataProvider) {
     return _buildInfoCard(
       onTap: () => setState(() => _selectedSection = 'services'),
@@ -884,7 +890,7 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              child: (pet.photoUrl != null && pet.photoUrl!.isNotEmpty)
+                child: (pet.photoUrl != null && pet.photoUrl!.isNotEmpty)
                   ? Image.network(
                       pet.photoUrl!,
                       fit: BoxFit.cover,
@@ -959,9 +965,9 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
             ),
             Padding(
               padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                   Text(
                     pet.name,
                     style: const TextStyle(
@@ -969,7 +975,7 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
                         fontWeight: FontWeight.bold,
                         color: Colors.white),
                   ),
-                  const SizedBox(height: 4),
+                    const SizedBox(height: 4),
                   Text(
                     pet.breed ?? 'Sem raça definida',
                     style: const TextStyle(color: Colors.white70),
@@ -981,8 +987,8 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
               color: Colors.black.withOpacity(0.2),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  IconButton(
+                      children: [
+                        IconButton(
                     icon: const Icon(Icons.visibility, color: Colors.white70),
                     onPressed: () => _showPetDetailsDialog(pet),
                     tooltip: 'Visualizar',
@@ -991,18 +997,18 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
                     icon: const Icon(Icons.edit, color: Colors.white70),
                     onPressed: () => _showPetFormDialog(pet: pet),
                     tooltip: 'Editar',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.redAccent),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.redAccent),
                     onPressed: () => _handleDeletePet(pet),
                     tooltip: 'Excluir',
-                  ),
-                ],
-              ),
+                        ),
+                      ],
+                    ),
             )
-          ],
-        ),
-      ),
+                  ],
+                ),
+              ),
     );
   }
 
@@ -1048,7 +1054,7 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
                       errorBuilder: (context, error, stackTrace) {
                         print('Error loading product image: $error');
                         print('URL: ${product.imageUrl}');
-                        return Container(
+    return Container(
                           color: Colors.black.withOpacity(0.2),
                           child: const Center(
                             child: Column(
@@ -1212,7 +1218,7 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
                       child: const Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
+            children: [
                             Icon(
                               Icons.medical_services,
                               size: 80,
@@ -1230,9 +1236,9 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
             ),
             Padding(
               padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                   Text(
                     service.name,
                     style: const TextStyle(
@@ -1250,9 +1256,9 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
                         fontWeight: FontWeight.bold,
                         fontSize: 16),
                   ),
-                ],
-              ),
+              ],
             ),
+          ),
             Container(
               color: Colors.black.withOpacity(0.2),
               child: Row(
@@ -1514,9 +1520,9 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
                     child: const Text('Salvar'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF667eea),
-                    ),
-                  ),
-              ],
+            ),
+          ),
+        ],
             ),
           ),
         );
@@ -1525,12 +1531,12 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
   }
 
   Widget _buildPetForm() {
-    return Form(
-      key: _petFormKey,
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+          return Form(
+            key: _petFormKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
             _buildTextFormField(
                 controller: _petNameController,
                 labelText: 'Nome do Pet',
@@ -1565,10 +1571,10 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
             ),
             const SizedBox(height: 16),
             _buildTextFormField(
-              controller: _petPhotoUrlController,
+                    controller: _petPhotoUrlController,
               labelText: 'URL da Foto',
               icon: Icons.image,
-              keyboardType: TextInputType.url,
+                    keyboardType: TextInputType.url,
               isOptional: true),
             const SizedBox(height: 16),
             _buildDropdownFormField(
@@ -1585,11 +1591,11 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
               onChanged: (value) => setState(() => _petActivityLevel = value!),
               labelText: 'Nível de Atividade',
               icon: Icons.directions_run,
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
-      ),
-    );
+          );
   }
 
   InputDecoration _inputDecoration(String label, IconData icon) {
