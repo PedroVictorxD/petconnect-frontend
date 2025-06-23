@@ -50,6 +50,21 @@ class ApiService {
     }
   }
 
+  // Validar token
+  static Future<bool?> validateToken() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/auth/validate'),
+        headers: _headers,
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Erro ao validar token: $e');
+      return false;
+    }
+  }
+
   // Usuários
   static Future<User?> createTutor(User user) async {
     try {
@@ -224,16 +239,30 @@ class ApiService {
 
   static Future<Pet?> createPet(Pet pet) async {
     try {
+      // Manually create the JSON map to ensure tutorId is sent correctly.
+      final body = {
+        'name': pet.name,
+        'type': pet.type,
+        'breed': pet.breed,
+        'age': pet.age,
+        'weight': pet.weight,
+        'photoUrl': pet.photoUrl,
+        'activityLevel': pet.activityLevel,
+        'tutorId': pet.tutorId, // Send tutorId directly
+      };
+
       final response = await http.post(
         Uri.parse('$baseUrl/api/pets'),
         headers: _headers,
-        body: jsonEncode(pet.toJson()),
+        body: jsonEncode(body),
       );
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 201) { // Check for 201 Created
         return Pet.fromJson(jsonDecode(response.body));
+      } else {
+        print('Falha ao criar pet: ${response.statusCode} - ${response.body}');
+        return null;
       }
-      return null;
     } catch (e) {
       print('Erro ao criar pet: $e');
       return null;

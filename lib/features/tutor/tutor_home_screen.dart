@@ -1,18 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:provider/provider.dart';
-import 'dart:math';
 import 'dart:ui';
+import 'dart:math';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/pet.dart';
 import '../../models/product.dart';
-import '../../models/user.dart';
 import '../../models/vet_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_provider.dart';
-
-// --- WIDGET PRINCIPAL ---
 
 class TutorHomeScreen extends StatefulWidget {
   const TutorHomeScreen({super.key});
@@ -22,564 +19,1181 @@ class TutorHomeScreen extends StatefulWidget {
 }
 
 class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderStateMixin {
-  // --- VARIÁVEIS DE ESTADO ---
-
-  // Formulário de Pet
-  final TextEditingController _petNameController = TextEditingController();
-  final TextEditingController _petBreedController = TextEditingController();
-  final TextEditingController _petAgeController = TextEditingController();
-  final TextEditingController _petWeightController = TextEditingController();
-  final TextEditingController _petPhotoUrlController = TextEditingController();
-  final GlobalKey<FormState> _petFormKey = GlobalKey<FormState>();
-  String _petType = 'Cachorro';
-  String _petActivityLevel = 'Médio';
-
-  // Calculadora
-  final _calculatorWeightController = TextEditingController();
-  String _calculatorPetType = 'Cachorro';
-  String _calculatorLifeStage = 'Adulto';
-  String _calculatorActivityLevel = 'Médio';
-  double? _dailyFoodAmount;
-  Pet? _selectedPetForCalc;
-
-  // UI
+  // --- STATE ---
   String _selectedSection = 'pets';
-  bool _showCalculator = false;
 
   // Animação do Fundo
   AnimationController? _pawAnimationController;
   final List<_Paw> _paws = [];
   final Random _random = Random();
 
-  // --- CICLO DE VIDA ---
+  // Formulário de Pet
+  final GlobalKey<FormState> _petFormKey = GlobalKey<FormState>();
+  final TextEditingController _petNameController = TextEditingController();
+  final TextEditingController _petBreedController = TextEditingController();
+  final TextEditingController _petAgeController = TextEditingController();
+  final TextEditingController _petWeightController = TextEditingController();
+  final TextEditingController _petPhotoUrlController = TextEditingController();
+  String _petType = 'Cachorro';
+  String _petActivityLevel = 'Médio';
+
+  // Calculadora
+  final _foodCalculatorFormKey = GlobalKey<FormState>();
+  final _weightController = TextEditingController();
+  String _calculatorPetSize = 'Pequeno';
+  String _calculatorActivityLevel = 'Médio';
+  String _result = '';
+  String _calculatorPetType = 'Cachorro';
+  String _calculatorLifeStage = 'Adulto';
+  bool _isNeutered = false;
 
   @override
   void initState() {
     super.initState();
+    _initializeAnimations();
+    _loadData();
+  }
+  
+  void _initializeAnimations() {
     _pawAnimationController = AnimationController(
+      duration: const Duration(seconds: 10),
       vsync: this,
-      duration: const Duration(seconds: 1), // A duração não importa pois a animação se repete
-    )..addListener(_updatePawAnimation);
+    )..repeat();
 
+    // Gerar patinhas flutuantes
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializePaws();
-      _pawAnimationController?.repeat();
-      _refreshData();
+      if (!mounted) return;
+      final size = MediaQuery.of(context).size;
+      for (int i = 0; i < 20; i++) {
+        _paws.add(_Paw(
+          position: Offset(
+            _random.nextDouble() * size.width,
+            _random.nextDouble() * size.height,
+          ),
+          scale: _random.nextDouble() * 0.5 + 0.3,
+          opacity: _random.nextDouble() * 0.3 + 0.1,
+          speed: _random.nextDouble() * 20 + 10, // Velocidade ajustada
+        ));
+      }
+    });
+  }
+
+  void _loadData() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final dataProvider = Provider.of<DataProvider>(context, listen: false);
+      final userId = authProvider.currentUser?.id;
+      if (userId != null) {
+        dataProvider.fetchAllDataForTutor(userId);
+      }
     });
   }
 
   @override
   void dispose() {
     _pawAnimationController?.dispose();
-    // Limpeza dos controllers
     _petNameController.dispose();
     _petBreedController.dispose();
     _petAgeController.dispose();
     _petWeightController.dispose();
     _petPhotoUrlController.dispose();
-    _calculatorWeightController.dispose();
+    _weightController.dispose();
     super.dispose();
   }
-
-  // --- MÉTODOS DE DADOS ---
 
   Future<void> _refreshData() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final dataProvider = Provider.of<DataProvider>(context, listen: false);
-    final user = authProvider.currentUser;
-    if (user != null && user.id != null) {
-      await dataProvider.fetchPetsForTutor(user.id!);
-      await dataProvider.fetchProducts();
-      await dataProvider.fetchServices();
+    final userId = authProvider.currentUser?.id;
+    if (userId != null) {
+      await dataProvider.fetchAllDataForTutor(userId);
     }
   }
 
-  void _savePet(Pet? existingPet) async {
-    if (_petFormKey.currentState!.validate()) {
+  // --- MÉTODOS DE CRUD DE PET ---
+
+  void _clearPetForm() {
+    _petFormKey.currentState?.reset();
+    _petNameController.clear();
+    _petBreedController.clear();
+    _petAgeController.clear();
+    _petWeightController.clear();
+    _petPhotoUrlController.clear();
+    setState(() { 
+      _petType = 'Cachorro'; 
+      _petActivityLevel = 'Médio';
+    });
+  }
+
+  void _showPetFormDialog({Pet? pet}) {
+    _clearPetForm();
+    if (pet != null) {
+      _petNameController.text = pet.name;
+      _petBreedController.text = pet.breed ?? '';
+      _petAgeController.text = pet.age.toString();
+      _petWeightController.text = pet.weight.toString();
+      _petPhotoUrlController.text = pet.photoUrl ?? '';
+      _petType = pet.type;
+      _petActivityLevel = pet.activityLevel ?? 'Médio';
+    }
+
+    _showAnimatedDialog(
+      title: pet == null ? 'Adicionar Novo Pet' : 'Editar Pet',
+      content: _buildPetForm(),
+      onSave: () => _savePet(pet),
+    );
+  }
+
+  Future<void> _savePet(Pet? existingPet) async {
+    if (!_petFormKey.currentState!.validate()) return;
+
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final user = authProvider.currentUser;
-      if (user != null && user.id != null) {
-        
-        final petData = Pet(
-          id: existingPet?.id,
+    final user = authProvider.currentUser;
+    if (user == null || user.id == null) return;
+
+    final petData = Pet(
+      id: existingPet?.id,
       name: _petNameController.text,
       breed: _petBreedController.text,
-          age: int.parse(_petAgeController.text),
-          weight: double.parse(_petWeightController.text),
-          type: _petType,
+      age: int.tryParse(_petAgeController.text) ?? 0,
+      weight: double.tryParse(_petWeightController.text.replaceAll(',', '.')) ?? 0.0,
+      type: _petType,
       activityLevel: _petActivityLevel,
       photoUrl: _petPhotoUrlController.text,
-      tutor: {
-            'id': user.id!,
-            'name': user.name,
-            'email': user.email,
-            'phone': user.phone,
-            'location': user.location,
-            'dtype': user.dtype,
-          },
-        );
+      tutorId: user.id,
+    );
 
-        if (existingPet == null) {
-          await Provider.of<DataProvider>(context, listen: false).createPet(petData);
-        } else if (petData.id != null) {
-          await Provider.of<DataProvider>(context, listen: false).updatePet(petData.id!, petData);
-        }
+    final dataProvider = Provider.of<DataProvider>(context, listen: false);
+    bool success;
+    if (existingPet == null) {
+      success = await dataProvider.createPet(petData, user.id!);
+    } else {
+      success = await dataProvider.updatePet(petData, user.id!);
+    }
 
-        Navigator.of(context).pop();
-        _refreshData();
-      }
+    if (mounted) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success ? 'Pet salvo com sucesso!' : dataProvider.error ?? 'Ocorreu um erro.'),
+          backgroundColor: success ? Colors.green : Colors.red,
+        ),
+      );
     }
   }
 
-  void _deletePet(int petId) async {
-    await Provider.of<DataProvider>(context, listen: false).deletePet(petId);
-    _refreshData();
-    Navigator.of(context).pop(); // Fecha o dialog de confirmação ou o de edição
-  }
+  void _handleDeletePet(Pet pet) {
+    if (pet.id == null) return;
 
-  // --- MÉTODOS DE ANIMAÇÃO DE FUNDO ---
-  void _initializePaws() {
-    if (!mounted) return;
-    final size = MediaQuery.of(context).size;
-    setState(() {
-      for (int i = 0; i < 40; i++) {
-        _paws.add(_Paw(
-          position: Offset(
-            _random.nextDouble() * size.width,
-            _random.nextDouble() * size.height,
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Confirmar Exclusão'),
+        content: Text('Tem certeza de que deseja excluir ${pet.name}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
           ),
-          scale: _random.nextDouble() * 0.4 + 0.6, // Escala entre 0.6 e 1.0
-          opacity: _random.nextDouble() * 0.04 + 0.02, // Opacidade entre 0.02 e 0.06
-          speed: _random.nextDouble() * 15 + 10, // Velocidade entre 10 e 25
-        ));
-      }
-    });
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context); // Fecha o dialog de confirmação
+              await _deletePet(pet.id!);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Excluir'),
+          ),
+        ],
+      ),
+    );
   }
 
-  void _updatePawAnimation() {
-    if (!mounted) return;
-    final size = MediaQuery.of(context).size;
-    const double frameTime = 1 / 60; 
+  Future<void> _deletePet(int petId) async {
+    final dataProvider = Provider.of<DataProvider>(context, listen: false);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final userId = authProvider.currentUser?.id;
 
-    setState(() {
-      for (var paw in _paws) {
-        paw.position = paw.position.translate(0, -paw.speed * frameTime);
-        if (paw.position.dy < -50) {
-          paw.position = Offset(_random.nextDouble() * size.width, size.height + 50);
-        }
-      }
-    });
+    if (userId == null) return;
+
+    final success = await dataProvider.deletePet(petId, userId);
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success ? 'Pet excluído com sucesso!' : dataProvider.error ?? 'Erro ao excluir pet.'),
+          backgroundColor: success ? Colors.green : Colors.red,
+        ),
+      );
+    }
   }
 
-  // --- CONSTRUÇÃO DA UI ---
+  // --- WIDGETS DE UI ---
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
-    final user = authProvider.currentUser;
-
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: const Size.fromHeight(0), // AppBar invisível
-        child: AppBar(elevation: 0, backgroundColor: Colors.transparent),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF667eea),
+        elevation: 0,
+        title: const Text('Painel do Tutor', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+            onPressed: () {
+              Provider.of<AuthProvider>(context, listen: false).logout();
+              Navigator.pushReplacementNamed(context, '/login');
+            },
+            tooltip: 'Sair',
+          ),
+        ],
       ),
-      extendBody: true,
+      backgroundColor: const Color(0xFF667eea),
       body: Stack(
         children: [
-          // Fundo com gradiente
           Container(
+            width: double.infinity,
+            height: double.infinity,
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFF667eea), Color(0xFF764ba2), Color(0xFFf093fb)],
-                stops: [0.0, 0.6, 1.0],
+                colors: [
+                  Color(0xFF667eea),
+                  Color(0xFF764ba2),
+                ],
               ),
-            ),
-          ),
-          _buildPawPrintBackground(),
-
-          // Conteúdo principal
-          SafeArea(
-            child: RefreshIndicator(
-              onRefresh: _refreshData,
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              children: [
-                  _buildHeader(user),
-                const SizedBox(height: 24),
-                  _buildSectionSelector(),
-                  const SizedBox(height: 24),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 400),
-                    transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: child),
-                    child: LayoutBuilder(
-                      builder: (context, constraints) => _buildCurrentSection(constraints: constraints)
-                    ),
-                ),
-              ],
-            ),
             ),
           ),
           
-          // Botões flutuantes
-          _buildFloatingActionButtons(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader(User? user) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-                Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                const Text(
-                  'Bem-vindo(a) de volta,',
-                  style: TextStyle(color: Colors.white70, fontSize: 16),
-                ),
-                if (user != null)
-                  Text(
-                    user.name,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      shadows: [Shadow(blurRadius: 2, color: Colors.black26)],
+          // Animação de Patinhas
+          AnimatedBuilder(
+            animation: _pawAnimationController!,
+            builder: (context, child) {
+              return CustomPaint(
+                painter: _PawPainter(paws: _paws, animationValue: _pawAnimationController!.value),
+                child: Container(),
+              );
+            },
+          ),
+          
+          SafeArea(
+            child: Column(
+              children: [
+                _buildHeader(),
+                const SizedBox(height: 20),
+                _buildInfoCards(),
+                const SizedBox(height: 20),
+                _buildSectionSelector(),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: _refreshData,
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 500),
+                      child: _buildSelectedSection(),
                     ),
                   ),
-              ],
-            ),
-            // Logo
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.pets, color: Colors.white, size: 28),
-                    ),
-                  ],
                 ),
-                const SizedBox(height: 20),
-        _buildStatsRow(),
-      ],
-    );
-  }
-
-  Widget _buildStatsRow() {
-    final dataProvider = Provider.of<DataProvider>(context);
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        _buildStatCard('Pets', dataProvider.pets.length.toString(), Icons.pets_rounded, const Color(0xFFf7797d)),
-        _buildStatCard('Produtos', dataProvider.products.length.toString(), Icons.shopping_bag, const Color(0xFFFBD786)),
-        _buildStatCard('Serviços', dataProvider.vetServices.length.toString(), Icons.medical_services, const Color(0xFF84fab0)),
-      ],
-    );
-  }
-
-  Widget _buildStatCard(String title, String count, IconData icon, Color color) {
-    return Expanded(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withOpacity(0.2)),
-        ),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, color: color, size: 22),
-                const SizedBox(width: 8),
-                Text(title, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(count, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildSectionSelector() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-        _buildSelectorButton('pets', Icons.pets_rounded, 'Meus Pets'),
-        _buildSelectorButton('products', Icons.shopping_bag, 'Produtos'),
-        _buildSelectorButton('services', Icons.medical_services, 'Serviços'),
-      ],
-    );
-  }
-
-  Widget _buildSelectorButton(String section, IconData icon, String label) {
-    final bool isSelected = _selectedSection == section;
-    return GestureDetector(
-        onTap: () => setState(() => _selectedSection = section),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.white.withOpacity(0.25) : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
-            children: [
-            Icon(icon, color: Colors.white, size: 20),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            ],
-          ),
-        ),
-    );
-  }
-  
-  Widget _buildFloatingActionButtons() {
-    return Positioned(
-      bottom: 24,
-      left: 24,
-      right: 24,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          FloatingActionButton.extended(
-            heroTag: 'calculator_fab',
-            onPressed: _showCalculatorDialog,
-            icon: const Icon(Icons.calculate_outlined),
-            label: const Text('Calculadora'),
-            backgroundColor: const Color(0xFF7b4cfe).withOpacity(0.9),
-            extendedPadding: const EdgeInsets.symmetric(horizontal: 20),
-          ),
-          FloatingActionButton.extended(
-            heroTag: 'add_pet_fab',
-            onPressed: () => _showPetFormDialog(),
-            icon: const Icon(Icons.add),
-            label: const Text('Adicionar Pet'),
-             backgroundColor: const Color(0xFF7b4cfe).withOpacity(0.9),
-            extendedPadding: const EdgeInsets.symmetric(horizontal: 20),
           ),
         ],
       ),
+      floatingActionButton: _buildFloatingActionButtons(),
     );
   }
 
-  Widget _buildPawPrintBackground() {
-    return CustomPaint(
-      painter: _PawPrintPainter(_paws),
-      child: Container(),
-    );
-  }
-
-  Widget _buildCurrentSection({required BoxConstraints constraints}) {
-    final isDesktop = constraints.maxWidth > 1200;
-    final isTablet = constraints.maxWidth > 600 && constraints.maxWidth <= 1200;
-
+  Widget _buildSelectedSection() {
+    final dataProvider = Provider.of<DataProvider>(context);
     switch (_selectedSection) {
       case 'pets':
-        return _buildPetsSection(key: const ValueKey('pets'), isTablet: isTablet, isDesktop: isDesktop);
+        return _buildPetGrid(dataProvider.pets);
       case 'products':
-        return _buildGridSection<Product>(key: const ValueKey('products'), constraints: constraints);
+        return _buildProductGrid(dataProvider.products);
       case 'services':
-        return _buildGridSection<VetService>(key: const ValueKey('services'), constraints: constraints);
+        return _buildServiceGrid(dataProvider.vetServices);
       default:
-        return const SizedBox.shrink();
+        return _buildPetGrid(dataProvider.pets);
     }
   }
 
-  // --- SEÇÕES (PETS, PRODUTOS, SERVIÇOS) ---
+  Widget _buildEmptyState(String message, IconData icon) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 64, color: Colors.white.withOpacity(0.5)),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            style: TextStyle(fontSize: 16, color: Colors.white.withOpacity(0.7)),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
 
-  Widget _buildPetsSection({Key? key, bool isTablet = false, bool isDesktop = false}) {
-    return Consumer<DataProvider>(
-      key: key,
-      builder: (context, dataProvider, child) {
-        if (dataProvider.isLoading && dataProvider.pets.isEmpty) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (dataProvider.pets.isEmpty) {
-          return _buildEmptyState(
-            'Nenhum Pet Cadastrado',
-            'Adicione seus pets para vê-los aqui!',
-            Icons.pets_rounded,
+  Widget _buildPetGrid(List<Pet> pets) {
+    if (pets.isEmpty) {
+      return _buildEmptyState('Nenhum pet encontrado.', Icons.pets);
+    }
+    return GridView.builder(
+      key: const PageStorageKey<String>('petsGrid'),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 200,
+        childAspectRatio: 1.0,
+        crossAxisSpacing: 20,
+        mainAxisSpacing: 20,
+      ),
+      itemCount: pets.length,
+      padding: const EdgeInsets.all(16.0),
+      itemBuilder: (context, index) {
+        return _buildPetCard(pets[index]);
+      },
+    );
+  }
+
+  Widget _buildProductGrid(List<Product> products) {
+    if (products.isEmpty) {
+      return _buildEmptyState('Nenhum produto encontrado.', Icons.shopping_bag);
+    }
+    return GridView.builder(
+      key: const PageStorageKey<String>('productsGrid'),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 200,
+        childAspectRatio: 1.0,
+        crossAxisSpacing: 20,
+        mainAxisSpacing: 20,
+      ),
+      itemCount: products.length,
+      padding: const EdgeInsets.all(16.0),
+      itemBuilder: (context, index) {
+        return _buildProductCard(products[index]);
+      },
+    );
+  }
+
+  Widget _buildServiceGrid(List<VetService> services) {
+    if (services.isEmpty) {
+      return _buildEmptyState('Nenhum serviço encontrado.', Icons.medical_services);
+    }
+    return GridView.builder(
+      key: const PageStorageKey<String>('servicesGrid'),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 200,
+        childAspectRatio: 1.0,
+        crossAxisSpacing: 20,
+        mainAxisSpacing: 20,
+      ),
+      itemCount: services.length,
+      padding: const EdgeInsets.all(16.0),
+      itemBuilder: (context, index) {
+        return _buildServiceCard(services[index]);
+      },
+    );
+  }
+
+  Widget _buildFloatingActionButtons() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+        FloatingActionButton(
+          onPressed: () => _showPetFormDialog(),
+          heroTag: 'add_fab',
+          tooltip: 'Adicionar Pet',
+          backgroundColor: const Color(0xFF764ba2),
+          child: const Icon(Icons.add, color: Colors.white),
+        ),
+        const SizedBox(height: 10),
+        FloatingActionButton(
+          onPressed: _showFoodCalculatorDialog,
+          heroTag: 'calculator_fab',
+          tooltip: 'Calculadora de Ração',
+          backgroundColor: const Color(0xFFa777e3),
+          child: const Icon(Icons.calculate, color: Colors.white),
+        ),
+      ],
+    );
+  }
+
+  void _showPetDetailsDialog(Pet pet) {
+    _showAnimatedDialog(
+      title: pet.name,
+      content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+              children: [
+            if (pet.photoUrl != null && pet.photoUrl!.isNotEmpty)
+              Center(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    pet.photoUrl!,
+                    width: 150,
+                    height: 150,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Center(
+                        child: CircularProgressIndicator(
+                          value: loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                              : null,
+                          color: Colors.white,
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      print('Error loading pet image: $error');
+                      return const Icon(
+                        Icons.pets,
+                        size: 150,
+                        color: Colors.grey,
+                      );
+                    },
+                  ),
+                ),
+              ),
+            const SizedBox(height: 16),
+            _buildDetailRow(Icons.pets, 'Tipo:', pet.type),
+            _buildDetailRow(Icons.pets, 'Raça:', pet.breed ?? 'Não informada'),
+            _buildDetailRow(Icons.cake, 'Idade:', '${pet.age} anos'),
+            _buildDetailRow(Icons.fitness_center, 'Peso:', '${pet.weight} kg'),
+            _buildDetailRow(Icons.directions_run, 'Nível de Atividade:', pet.activityLevel ?? 'Não informado'),
+            if (pet.notes != null && pet.notes!.isNotEmpty)
+              _buildDetailRow(Icons.note, 'Notas:', pet.notes!),
+          ],
+        ),
+      ),
+      onSave: null, // No save button for details view
+    );
+  }
+
+  void _showProductDetailsDialog(Product product) {
+    _showAnimatedDialog(
+      title: product.name,
+      content: SingleChildScrollView(
+            child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+              children: [
+            if (product.imageUrl != null && product.imageUrl!.isNotEmpty)
+              Center(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    product.imageUrl!,
+                    width: 150,
+                    height: 150,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                  : null,
+                              color: Colors.white,
+                            ),
+                const SizedBox(height: 8),
+                            Text(
+                              'Carregando...',
+                              style: TextStyle(color: Colors.white.withOpacity(0.7)),
+          ),
+        ],
+      ),
           );
-        }
-
-        final double viewportFraction = isDesktop ? 0.3 : (isTablet ? 0.55 : 0.8);
-        final double carouselHeight = isDesktop ? 340 : 280;
-
-        return CarouselSlider.builder(
-          itemCount: dataProvider.pets.length,
-          itemBuilder: (context, index, realIndex) => _buildPetCard(dataProvider.pets[index]),
-          options: CarouselOptions(
-            height: carouselHeight,
-            autoPlay: dataProvider.pets.length > 1,
-            autoPlayInterval: const Duration(seconds: 8),
-            autoPlayAnimationDuration: const Duration(milliseconds: 1500),
-            autoPlayCurve: Curves.fastOutSlowIn,
-            enlargeCenterPage: true,
-            viewportFraction: viewportFraction,
-            aspectRatio: 16 / 9,
-          ),
-        );
-      },
+        },
+                    errorBuilder: (context, error, stackTrace) {
+                      print('Error loading product image: $error');
+                      print('URL: ${product.imageUrl}');
+                      return Container(
+                        color: Colors.black.withOpacity(0.2),
+                        child: const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.shopping_bag,
+                                size: 40,
+                                color: Colors.white30,
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'Imagem não carregou',
+                                style: TextStyle(color: Colors.white30, fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            const SizedBox(height: 16),
+            _buildDetailRow(Icons.description, 'Descrição:', product.description ?? 'Não informado'),
+            _buildDetailRow(Icons.price_change, 'Preço:', 'R\$ ${product.price.toStringAsFixed(2)}'),
+            _buildDetailRow(Icons.straighten, 'Unidade:', product.measurementUnit ?? 'Não informado'),
+            const SizedBox(height: 10),
+            const Divider(),
+            const SizedBox(height: 10),
+            Text('Vendido por:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.9))),
+            const SizedBox(height: 5),
+            _buildDetailRow(Icons.store, 'Loja:', product.ownerName ?? 'Não informado'),
+            _buildDetailRow(Icons.location_on, 'Localização:', product.ownerLocation ?? 'Não informado'),
+            if (product.ownerPhone != null)
+              ListTile(
+                leading: const Icon(Icons.phone, color: Colors.white70),
+                title: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(product.ownerPhone!, style: const TextStyle(color: Colors.white)),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.message, color: Colors.greenAccent, size: 18),
+                  ],
+                ),
+                subtitle: Text(
+                  'Clique no número para abrir o WhatsApp',
+                  style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
+                ),
+                onTap: () => _launchWhatsApp(product.ownerPhone!),
+              ),
+          ],
+        ),
+      ),
+      onSave: null,
     );
   }
 
-  Widget _buildGridSection<T>({Key? key, required BoxConstraints constraints}) {
-    return Consumer<DataProvider>(
-      key: key,
-      builder: (context, dataProvider, child) {
-        final List<T> items = T == Product ? dataProvider.products as List<T> : dataProvider.vetServices as List<T>;
-        final String type = T == Product ? 'Produtos' : 'Serviços';
-
-        if (dataProvider.isLoading) return const Center(child: CircularProgressIndicator());
-        if (items.isEmpty) return _buildEmptyState('Nenhum(a) $type encontrado(a)', 'Volte mais tarde!', Icons.storefront);
-
-        final isDesktop = constraints.maxWidth > 1200;
-        final isTablet = constraints.maxWidth > 600 && constraints.maxWidth <= 1200;
-        final double viewportFraction = isDesktop ? 0.3 : (isTablet ? 0.5 : 0.8);
-        final double carouselHeight = isDesktop ? 340 : 260;
-
-        return CarouselSlider.builder(
-          itemCount: items.length,
-          itemBuilder: (context, index, realIndex) {
-            final item = items[index];
-            if (item is Product) return _buildProductCard(item);
-            if (item is VetService) return _buildServiceCard(item);
-            return const SizedBox.shrink();
-          },
-          options: CarouselOptions(
-            height: carouselHeight,
-            autoPlay: items.length > 1,
-            autoPlayInterval: const Duration(seconds: 8),
-            autoPlayAnimationDuration: const Duration(milliseconds: 1500),
-            autoPlayCurve: Curves.fastOutSlowIn,
-            enlargeCenterPage: true,
-            viewportFraction: viewportFraction,
-            aspectRatio: 16 / 9,
-          ),
-        );
-      },
+  void _showServiceDetailsDialog(VetService service) {
+    _showAnimatedDialog(
+      title: service.name,
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+        children: [
+             if (service.imageUrl != null && service.imageUrl!.isNotEmpty)
+              Center(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    service.imageUrl!,
+                    fit: BoxFit.cover,
+                    width: 150,
+                    height: 150,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Center(
+            child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                            CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                  : null,
+                              color: Colors.white,
+                            ),
+                const SizedBox(height: 8),
+                            Text(
+                              'Carregando...',
+                              style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      print('Error loading service image: $error');
+                      print('URL: ${service.imageUrl}');
+                      return Container(
+                        color: Colors.black.withOpacity(0.2),
+                        child: const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.medical_services,
+                                size: 40,
+                                color: Colors.white30,
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'Imagem não carregou',
+                                style: TextStyle(color: Colors.white30, fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            const SizedBox(height: 16),
+            _buildDetailRow(Icons.description, 'Descrição:', service.description ?? 'Não informado'),
+            _buildDetailRow(Icons.price_change, 'Preço:', 'R\$ ${service.price.toStringAsFixed(2)}'),
+             const SizedBox(height: 10),
+            const Divider(),
+            const SizedBox(height: 10),
+            Text('Oferecido por:', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white.withOpacity(0.9))),
+             _buildDetailRow(Icons.person, 'Veterinário:', service.ownerName ?? 'Não informado'),
+             _buildDetailRow(Icons.badge, 'CRMV:', service.ownerCrmv ?? 'Não informado'),
+             _buildDetailRow(Icons.location_on, 'Localização:', service.ownerLocation ?? 'Não informado'),
+             _buildDetailRow(Icons.access_time, 'Horário:', service.operatingHours ?? 'Não informado'),
+              if (service.ownerPhone != null)
+              ListTile(
+                leading: const Icon(Icons.phone, color: Colors.white70),
+                title: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(service.ownerPhone!, style: const TextStyle(color: Colors.white)),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.message, color: Colors.greenAccent, size: 18),
+                  ],
+                ),
+                subtitle: Text(
+                  'Clique no número para abrir o WhatsApp',
+                  style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
+                ),
+                onTap: () => _launchWhatsApp(service.ownerPhone!),
+              ),
+          ],
+        ),
+      ),
+      onSave: null,
     );
   }
 
-  // --- CARDS (PET, PRODUTO, SERVIÇO) ---
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+          Icon(icon, color: Colors.white70, size: 20),
+          const SizedBox(width: 12),
+                    Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(fontSize: 16, color: Colors.white),
+              children: [
+                  TextSpan(
+                    text: '$label: ',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.7),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  TextSpan(text: value),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final user = authProvider.currentUser;
+    return Padding(
+      padding: const EdgeInsets.only(top: 30.0, left: 20, right: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+                    Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Olá, ${user?.name ?? 'Tutor'}!',
+                  style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white),
+                ),
+                const Text(
+                  'Gerencie seus pets e explore!',
+                  style: TextStyle(fontSize: 16, color: Colors.white70),
+                ),
+              ],
+                      ),
+                    ),
+                  ],
+                ),
+    );
+  }
+
+  Widget _buildInfoCards() {
+    final dataProvider = Provider.of<DataProvider>(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: [
+          Expanded(child: _buildPetInfoCard(dataProvider)),
+          const SizedBox(width: 15),
+          Expanded(child: _buildProductInfoCard(dataProvider)),
+          const SizedBox(width: 15),
+          Expanded(child: _buildServiceInfoCard(dataProvider)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoCard({required Widget child, required GestureTapCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+                    padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(color: Colors.white.withOpacity(0.2)),
+        ),
+        child: child,
+      ),
+    );
+  }
+
+  Widget _buildPetInfoCard(DataProvider dataProvider) {
+    return _buildInfoCard(
+      onTap: () => setState(() => _selectedSection = 'pets'),
+      child: Column(
+        children: [
+          const Icon(Icons.pets, color: Colors.white, size: 28),
+          const SizedBox(height: 8),
+          Text(
+            '${dataProvider.pets.length}',
+            style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Meus Pets',
+            style: TextStyle(fontSize: 16, color: Colors.white70),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProductInfoCard(DataProvider dataProvider) {
+    return _buildInfoCard(
+      onTap: () => setState(() => _selectedSection = 'products'),
+      child: Column(
+        children: [
+          const Icon(Icons.shopping_bag, color: Colors.white, size: 28),
+          const SizedBox(height: 8),
+          Text(
+            '${dataProvider.products.length}',
+            style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Produtos',
+            style: TextStyle(fontSize: 16, color: Colors.white70),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildServiceInfoCard(DataProvider dataProvider) {
+    return _buildInfoCard(
+      onTap: () => setState(() => _selectedSection = 'services'),
+      child: Column(
+        children: [
+          const Icon(Icons.medical_services, color: Colors.white, size: 28),
+          const SizedBox(height: 8),
+          Text(
+            '${dataProvider.vetServices.length}',
+            style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Serviços',
+            style: TextStyle(fontSize: 16, color: Colors.white70),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionSelector() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(25),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildSectionButton('pets', 'Pets', Icons.pets),
+          _buildSectionButton('products', 'Produtos', Icons.shopping_bag),
+          _buildSectionButton('services', 'Serviços', Icons.medical_services),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionButton(String section, String label, IconData icon) {
+    final isSelected = _selectedSection == section;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _selectedSection = section),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFF764ba2) : Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: isSelected ? Colors.white : Colors.white70),
+              const SizedBox(width: 8),
+              Text(label, style: TextStyle(color: isSelected ? Colors.white : Colors.white70)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildPetCard(Pet pet) {
-    return GestureDetector(
-      onTap: () => _showPetPhotoDialog(pet),
-      child: Card(
-        clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        elevation: 5,
-        shadowColor: Colors.black.withOpacity(0.2),
+    return Card(
+      elevation: 8,
+      color: Colors.white.withOpacity(0.1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      clipBehavior: Clip.antiAlias,
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              flex: 3,
-              child: Container(
-                decoration: BoxDecoration(
-                  image: DecorationImage(
-                    image: NetworkImage(pet.photoUrl != null && pet.photoUrl!.isNotEmpty ? pet.photoUrl! : _getDefaultPetImage(pet.type)),
+                child: (pet.photoUrl != null && pet.photoUrl!.isNotEmpty)
+                  ? Image.network(
+                      pet.photoUrl!,
                       fit: BoxFit.cover,
-                  ),
-                ),
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.black.withOpacity(0.6), Colors.transparent],
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                      stops: const [0.0, 0.5],
+                      width: double.infinity,
+                      height: double.infinity,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                    : null,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Carregando...',
+                                style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        print('Error loading pet image: $error');
+                        print('URL: ${pet.photoUrl}');
+                        return Container(
+                          color: Colors.black.withOpacity(0.2),
+                          child: const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.pets,
+                                  size: 40,
+                                  color: Colors.white30,
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Imagem não carregou',
+                                  style: TextStyle(color: Colors.white30, fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    )
+                  : Container(
+                      color: Colors.black.withOpacity(0.2),
+                      child: const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.pets,
+                              size: 40,
+                              color: Colors.white30,
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Sem imagem',
+                              style: TextStyle(color: Colors.white30, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                  alignment: Alignment.bottomLeft,
-                  padding: const EdgeInsets.all(12),
-                  child: Text(
-                    pet.name,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 24, shadows: [
-                      Shadow(blurRadius: 2.0, color: Colors.black, offset: Offset(1.0, 1.0))
-                    ]),
-                  ),
-                ),
-              ),
             ),
-            Expanded(
-              flex: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: SingleChildScrollView(
+            Padding(
+              padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.start,
                   children: [
-                      _buildPetInfoRow(Icons.pets, '${pet.breed}, ${pet.type}'),
-                      const SizedBox(height: 8),
-                      _buildPetInfoRow(Icons.cake, '${pet.age} anos'),
-                      const SizedBox(height: 8),
-                      _buildPetInfoRow(Icons.fitness_center, '${pet.weight.toStringAsFixed(1)} kg'),
-                    ],
+                  Text(
+                    pet.name,
+                    style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
                   ),
-                ),
+                    const SizedBox(height: 4),
+                  Text(
+                    pet.breed ?? 'Sem raça definida',
+                    style: const TextStyle(color: Colors.white70),
+                  ),
+                  // Informações do tutor se disponíveis
+                  if (pet.ownerName != null && pet.ownerName!.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Tutor: ${pet.ownerName}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          if (pet.ownerPhone != null && pet.ownerPhone!.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    pet.ownerPhone!,
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                    Icons.whatsapp,
+                                    color: Colors.green,
+                                    size: 16,
+                                  ),
+                                  onPressed: () => _openWhatsApp(pet.ownerPhone!),
+                                  tooltip: 'Contatar tutor',
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
-          ],
-        ),
-      ),
+            Container(
+              color: Colors.black.withOpacity(0.2),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        IconButton(
+                    icon: const Icon(Icons.visibility, color: Colors.white70),
+                    onPressed: () => _showPetDetailsDialog(pet),
+                    tooltip: 'Visualizar',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.edit, color: Colors.white70),
+                    onPressed: () => _showPetFormDialog(pet: pet),
+                    tooltip: 'Editar',
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.redAccent),
+                    onPressed: () => _handleDeletePet(pet),
+                    tooltip: 'Excluir',
+                        ),
+                      ],
+                    ),
+            )
+                  ],
+                ),
+              ),
     );
   }
 
   Widget _buildProductCard(Product product) {
-    return GestureDetector(
-      onTap: () => _showProductDetailsDialog(product),
-      child: Card(
-        clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        elevation: 3,
+    return Card(
+      elevation: 8,
+      color: Colors.white.withOpacity(0.1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      clipBehavior: Clip.antiAlias,
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              flex: 3,
-              child: Image.network(
-                product.imageUrl ?? 'https://via.placeholder.com/150',
-                fit: BoxFit.cover,
-                errorBuilder: (c, e, s) => const Icon(Icons.shopping_bag_outlined, size: 50, color: Colors.grey),
+              child: (product.imageUrl != null && product.imageUrl!.isNotEmpty)
+                  ? Image.network(
+                      product.imageUrl!,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                    : null,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Carregando...',
+                                style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        print('Error loading product image: $error');
+                        print('URL: ${product.imageUrl}');
+    return Container(
+                          color: Colors.black.withOpacity(0.2),
+                          child: const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.shopping_bag,
+                                  size: 40,
+                                  color: Colors.white30,
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Imagem não carregou',
+                                  style: TextStyle(color: Colors.white30, fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    )
+                  : Container(
+                      color: Colors.black.withOpacity(0.2),
+                      child: const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.shopping_bag,
+                              size: 40,
+                              color: Colors.white30,
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Sem imagem',
+                              style: TextStyle(color: Colors.white30, fontSize: 12),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    product.name,
+                    style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'R\$ ${product.price.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16),
+                  ),
+                ],
               ),
             ),
-            Expanded(
-              flex: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 2, overflow: TextOverflow.ellipsis),
-                    const SizedBox(height: 4),
-                      Text('R\$ ${product.price.toStringAsFixed(2)}', style: TextStyle(color: Theme.of(context).primaryColor, fontWeight: FontWeight.bold)),
-                    ],
+            Container(
+              color: Colors.black.withOpacity(0.2),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.visibility, color: Colors.white70),
+                    onPressed: () => _showProductDetailsDialog(product),
+                    tooltip: 'Visualizar',
                   ),
-                ),
+                  IconButton(
+                    icon: const Icon(Icons.add_shopping_cart, color: Colors.white70),
+                    onPressed: () {
+                      // Lógica para adicionar ao carrinho, se aplicável
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Funcionalidade de carrinho não implementada.')));
+                    },
+                    tooltip: 'Adicionar ao carrinho',
+                  ),
+                ],
               ),
             )
           ],
@@ -589,968 +1203,745 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
   }
 
   Widget _buildServiceCard(VetService service) {
-    return GestureDetector(
-      onTap: () => _showServiceDetailsDialog(service),
-      child: Card(
-        clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        elevation: 3,
+    return Card(
+      elevation: 8,
+      color: Colors.white.withOpacity(0.1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      clipBehavior: Clip.antiAlias,
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-            Expanded(
-              flex: 3,
-              child: Image.network(
-                service.imageUrl ?? 'https://via.placeholder.com/150',
-                fit: BoxFit.cover,
-                errorBuilder: (c, e, s) => const Icon(Icons.medical_services_outlined, size: 50, color: Colors.grey),
-              ),
-            ),
-            Expanded(
-              flex: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(service.name, style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 2, overflow: TextOverflow.ellipsis),
-                      const SizedBox(height: 4),
-                      Text('R\$ ${service.price.toStringAsFixed(2)}', style: TextStyle(color: Theme.of(context).primaryColor, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                ),
-              ),
-                    ),
-                  ],
-                ),
-              ),
-    );
-  }
-
-  // --- WIDGETS AUXILIARES E DE UI ---
-
-  Widget _buildPetInfoRow(IconData icon, String text) {
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: Colors.grey[600]),
-        const SizedBox(width: 8),
-        Expanded(child: Text(text, style: const TextStyle(fontSize: 14), overflow: TextOverflow.ellipsis)),
-      ],
-    );
-  }
-
-  Widget _buildEmptyState(String title, String message, IconData icon) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 60, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.grey)),
-            const SizedBox(height: 8),
-            Text(message, textAlign: TextAlign.center, style: TextStyle(color: Colors.grey[600])),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // --- MODAIS / DIÁLOGOS ---
-
-  void _showPetFormDialog({Pet? pet}) {
-    // Resetar o estado do formulário e preencher se for edição
-    _petFormKey.currentState?.reset();
-    _petNameController.text = pet?.name ?? '';
-    _petBreedController.text = pet?.breed ?? '';
-    _petAgeController.text = pet?.age.toString() ?? '';
-    _petWeightController.text = pet?.weight.toString() ?? '';
-    _petPhotoUrlController.text = pet?.photoUrl ?? '';
-    _petType = pet?.type ?? 'Cachorro';
-    _petActivityLevel = pet?.activityLevel ?? 'Médio';
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => StatefulBuilder(
-        builder: (BuildContext context, StateSetter setModalState) {
-          return TweenAnimationBuilder<double>(
-            duration: const Duration(milliseconds: 500),
-            tween: Tween(begin: 0.0, end: 1.0),
-            builder: (context, value, child) {
-              return Opacity(
-                opacity: value,
-                child: Transform.translate(
-                  offset: Offset(0, 100 * (1 - value)),
-                  child: child,
-                ),
-              );
-            },
-            child: Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(24),
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 20,
-                    spreadRadius: 5,
-                  )
-                ],
-              ),
-              child: SingleChildScrollView(
-                child: _buildPetForm(pet, setModalState),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildPetForm(Pet? pet, StateSetter setModalState) {
-    return Form(
-      key: _petFormKey,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(pet == null ? Icons.add_circle_outline : Icons.edit_outlined, color: Colors.white, size: 28),
-              const SizedBox(width: 12),
-              Text(
-                pet == null ? 'Adicionar Pet' : 'Editar Pet',
-                style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          _buildCalcTextFormField(controller: _petNameController, label: 'Nome', icon: Icons.badge_outlined),
-          const SizedBox(height: 12),
-          _buildCalcTextFormField(controller: _petBreedController, label: 'Raça', icon: Icons.pets_outlined),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(child: _buildCalcTextFormField(controller: _petAgeController, label: 'Idade', icon: Icons.cake_outlined, keyboardType: TextInputType.number)),
-              const SizedBox(width: 12),
-              Expanded(child: _buildCalcTextFormField(controller: _petWeightController, label: 'Peso (kg)', icon: Icons.fitness_center_outlined, keyboardType: const TextInputType.numberWithOptions(decimal: true))),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _buildCalcTextFormField(controller: _petPhotoUrlController, label: 'URL da Foto', icon: Icons.link_outlined),
-          const SizedBox(height: 12),
-          _buildCalcDropdown(
-            label: 'Tipo',
-            value: _petType,
-            items: ['Cachorro', 'Gato'],
-            icon: Icons.pets,
-            onChanged: (val) => setModalState(() => _petType = val!),
-          ),
-          const SizedBox(height: 12),
-          _buildCalcDropdown(
-            label: 'Nível de Atividade',
-            value: _petActivityLevel,
-            items: ['Baixo', 'Médio', 'Alto'],
-            icon: Icons.directions_run,
-            onChanged: (val) => setModalState(() => _petActivityLevel = val!),
-          ),
-          const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              if (pet != null)
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    _showDeleteConfirmationDialog(context, pet.id!);
-                  },
-                  child: const Text('Excluir', style: TextStyle(color: Colors.redAccent)),
-                ),
-              const Spacer(),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Cancelar', style: TextStyle(color: Colors.white70)),
-              ),
-              const SizedBox(width: 12),
-              ElevatedButton(
-                onPressed: () => _savePet(pet),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF7b4cfe),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                ),
-                child: Text(pet == null ? 'Adicionar' : 'Salvar'),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showDeleteConfirmationDialog(BuildContext parentContext, int petId) {
-    showGeneralDialog(
-      context: parentContext,
-      barrierDismissible: true,
-      barrierLabel: 'Fechar',
-      transitionDuration: const Duration(milliseconds: 300),
-      pageBuilder: (context, anim1, anim2) => Container(),
-      transitionBuilder: (context, anim1, anim2, child) {
-        return ScaleTransition(
-          scale: anim1.drive(Tween(begin: 0.8, end: 1.0).chain(CurveTween(curve: Curves.easeOutCubic))),
-          child: FadeTransition(
-            opacity: anim1,
-            child: Dialog(
-              backgroundColor: Colors.transparent,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(24),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                  child: Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF2c2f48).withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: Colors.redAccent.withOpacity(0.2)),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 40),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Confirmar Exclusão',
-                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-                        ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'Tem certeza que deseja excluir este pet? Esta ação não pode ser desfeita.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.white70),
-                        ),
-                        const SizedBox(height: 24),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            TextButton(
-                              onPressed: () => Navigator.of(context).pop(),
-                              child: const Text('Cancelar', style: TextStyle(color: Colors.white)),
-                            ),
-                            ElevatedButton(
-                              onPressed: () {
-                                Navigator.of(context).pop(); // Fecha o diálogo de confirmação
-                                _deletePet(petId);
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.redAccent,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            Expanded(
+              child: (service.imageUrl != null && service.imageUrl!.isNotEmpty)
+                  ? Image.network(
+                      service.imageUrl!,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                    : null,
+                                color: Colors.white,
                               ),
-                              child: const Text('Excluir'),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Carregando...',
+                                style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        print('Error loading service image: $error');
+                        print('URL: ${service.imageUrl}');
+    return Container(
+                          color: Colors.black.withOpacity(0.2),
+                          child: const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.medical_services,
+                                  size: 40,
+                                  color: Colors.white30,
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Imagem não carregou',
+                                  style: TextStyle(color: Colors.white30, fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    )
+                  : Container(
+                      color: Colors.black.withOpacity(0.2),
+                      child: const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+                            Icon(
+                              Icons.medical_services,
+                              size: 40,
+                              color: Colors.white30,
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Sem imagem',
+                              style: TextStyle(color: Colors.white30, fontSize: 12),
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showCalculatorDialog() {
-    // Limpar estado da calculadora ao abrir
-    _calculatorWeightController.clear();
-    _dailyFoodAmount = null;
-    _selectedPetForCalc = null;
-    _calculatorPetType = 'Cachorro';
-    _calculatorLifeStage = 'Adulto';
-    _calculatorActivityLevel = 'Médio';
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => StatefulBuilder(
-        builder: (BuildContext context, StateSetter setModalState) {
-          return TweenAnimationBuilder<double>(
-            duration: const Duration(milliseconds: 500),
-            tween: Tween(begin: 0.0, end: 1.0),
-            builder: (context, value, child) {
-              return Opacity(
-                opacity: value,
-                child: Transform.translate(
-                  offset: Offset(0, 100 * (1 - value)),
-                  child: child,
-                ),
-              );
-            },
-            child: Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(24),
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 20,
-                    spreadRadius: 5,
-                  )
-                ],
-              ),
-              child: SingleChildScrollView(
-                child: _buildCalculatorForm(setModalState),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildCalculatorForm(StateSetter setCalcState) {
-    final pets = Provider.of<DataProvider>(context, listen: false).pets;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.calculate_rounded, color: Colors.white, size: 28),
-            SizedBox(width: 12),
-            Text(
-              'Calculadora de Ração',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-        if (pets.isNotEmpty)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<Pet>(
-                hint: const Text('Ou selecione um pet salvo...', style: TextStyle(color: Colors.white70)),
-                value: _selectedPetForCalc,
-                isExpanded: true,
-                dropdownColor: const Color(0xFF764ba2),
-                icon: const Icon(Icons.pets, color: Colors.white),
-                style: const TextStyle(color: Colors.white, fontSize: 16),
-                items: pets
-                    .map((pet) => DropdownMenuItem(
-                          value: pet,
-                          child: Text(pet.name),
-                        ))
-                    .toList(),
-                onChanged: (pet) {
-                  if (pet == null) return;
-                  setCalcState(() {
-                    _selectedPetForCalc = pet;
-                    _calculatorWeightController.text = pet.weight.toString();
-                    _calculatorPetType = pet.type;
-                    _calculatorActivityLevel = pet.activityLevel ?? 'Médio';
-                    if (pet.age < 1) {
-                      _calculatorLifeStage = 'Filhote';
-                    } else if (pet.age > 7) {
-                      _calculatorLifeStage = 'Idoso';
-                    } else {
-                      _calculatorLifeStage = 'Adulto';
-                    }
-                    _calculateFood(setCalcState);
-                  });
-                },
-              ),
-            ),
-          ),
-        const SizedBox(height: 16),
-        _buildCalcTextFormField(
-          controller: _calculatorWeightController,
-          label: 'Peso (kg)',
-          icon: Icons.fitness_center,
-          onChanged: (_) => _calculateFood(setCalcState),
-        ),
-        const SizedBox(height: 12),
-        _buildCalcDropdown(
-          label: 'Tipo',
-          value: _calculatorPetType,
-          items: ['Cachorro', 'Gato'],
-          icon: Icons.pets,
-          onChanged: (val) {
-            if (val == null) return;
-            setCalcState(() {
-              _calculatorPetType = val;
-              _calculateFood(setCalcState);
-            });
-          },
-        ),
-        const SizedBox(height: 12),
-        _buildCalcDropdown(
-          label: 'Fase da Vida',
-          value: _calculatorLifeStage,
-          items: ['Filhote', 'Adulto', 'Idoso'],
-          icon: Icons.cake,
-          onChanged: (val) {
-            if (val == null) return;
-            setCalcState(() {
-              _calculatorLifeStage = val;
-              _calculateFood(setCalcState);
-            });
-          },
-        ),
-        const SizedBox(height: 12),
-        _buildCalcDropdown(
-          label: 'Nível de Atividade',
-          value: _calculatorActivityLevel,
-          items: ['Baixo', 'Médio', 'Alto'],
-          icon: Icons.directions_run,
-          onChanged: (val) {
-            if (val == null) return;
-            setCalcState(() {
-              _calculatorActivityLevel = val;
-              _calculateFood(setCalcState);
-            });
-          },
-        ),
-        const SizedBox(height: 24),
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 500),
-          transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: ScaleTransition(scale: animation, child: child)),
-          child: _dailyFoodAmount != null && _dailyFoodAmount! > 0
-              ? Container(
-                  key: ValueKey(_dailyFoodAmount),
-      padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    children: [
-                      const Text(
-                        'Recomendação Diária',
-                        style: TextStyle(
-                          color: Color(0xFF667eea),
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        '${_dailyFoodAmount!.toStringAsFixed(0)}g',
-                        style: const TextStyle(
-                          color: Color(0xFF764ba2),
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : const SizedBox.shrink(key: ValueKey('empty')),
-        ),
-      ],
-    );
-  }
-
-  TextFormField _buildCalcTextFormField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    void Function(String)? onChanged,
-    TextInputType? keyboardType,
-  }) {
-    return TextFormField(
-      controller: controller,
-      onChanged: onChanged,
-      keyboardType: keyboardType,
-      style: const TextStyle(color: Colors.white),
-      decoration: InputDecoration(
-        prefixIcon: Icon(icon, color: Colors.white70),
-        labelText: label,
-        labelStyle: const TextStyle(color: Colors.white70),
-        filled: true,
-        fillColor: Colors.white.withOpacity(0.2),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.white),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCalcDropdown({
-    required String label,
-    required String value,
-    required List<String> items,
-    required IconData icon,
-    required ValueChanged<String?> onChanged,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          isExpanded: true,
-          dropdownColor: const Color(0xFF764ba2),
-          icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
-          style: const TextStyle(color: Colors.white, fontSize: 16),
-          items: items
-              .map((item) => DropdownMenuItem(
-                    value: item,
-                    child: Row(
-                      children: [
-                        Icon(icon, color: Colors.white70, size: 20),
-                        const SizedBox(width: 12),
-                        Text(item),
-                      ],
-                    ),
-                  ))
-              .toList(),
-          onChanged: onChanged,
-        ),
-      ),
-    );
-  }
-
-  void _calculateFood(StateSetter setCalcState) {
-    final weight = double.tryParse(_calculatorWeightController.text);
-    if (weight == null || weight <= 0) {
-      setCalcState(() => _dailyFoodAmount = null);
-      return;
-    }
-
-    double baseMultiplier = _calculatorPetType == 'Gato' ? 50 : 60;
-
-    switch (_calculatorLifeStage) {
-      case 'Filhote':
-        baseMultiplier *= 1.8;
-        break;
-      case 'Idoso':
-        baseMultiplier *= 0.8;
-        break;
-      case 'Adulto':
-      default:
-        break;
-    }
-
-    switch (_calculatorActivityLevel) {
-      case 'Baixo':
-        baseMultiplier *= 0.85;
-        break;
-      case 'Alto':
-        baseMultiplier *= 1.15;
-        break;
-      case 'Médio':
-      default:
-        break;
-    }
-
-    final result = weight * (baseMultiplier / 2);
-
-    setCalcState(() {
-      _dailyFoodAmount = result > 0 ? result : 0;
-    });
-  }
-
-  String _getDefaultPetImage(String petType) {
-    return petType == 'Gato'
-        ? 'https://i.pinimg.com/736x/87/7b/0a/877b0a7df75e1a3f185ef3d201a0528e.jpg'
-        : 'https://i.natgeofe.com/n/4f5aaece-3300-41a4-b2a8-ed2708a0a27c/domestic-dog_thumb_4x3.jpg';
-  }
-
-  void _showPetPhotoDialog(Pet pet) {
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'Fechar',
-      transitionDuration: const Duration(milliseconds: 400),
-      pageBuilder: (context, anim1, anim2) => Container(),
-      transitionBuilder: (context, anim1, anim2, child) {
-        return ScaleTransition(
-          scale: anim1.drive(Tween(begin: 0.7, end: 1.0).chain(CurveTween(curve: Curves.easeOutCubic))),
-          child: FadeTransition(
-            opacity: anim1,
-            child: _buildPetDetailsDialogContent(pet),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildPetDetailsDialogContent(Pet pet) {
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            width: 400,
-            decoration: BoxDecoration(
-              color: const Color(0xFF3A3E59).withOpacity(0.6),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.white.withOpacity(0.1)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-                Stack(
-                  alignment: Alignment.bottomLeft,
-                  children: [
-                    ClipRRect(
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(24),
-                        topRight: Radius.circular(24),
-                      ),
-                      child: Image.network(
-                        pet.photoUrl != null && pet.photoUrl!.isNotEmpty ? pet.photoUrl! : _getDefaultPetImage(pet.type),
-                        height: 300,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (c, e, s) => Container(
-                          height: 300,
-                          color: Colors.grey.shade800,
-                          child: const Icon(Icons.pets, size: 120, color: Colors.grey),
-                        ),
                       ),
                     ),
-                    Container(
-                      height: 150,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [Colors.black.withOpacity(0.8), Colors.transparent],
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Text(
-                        pet.name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          shadows: [Shadow(blurRadius: 4, color: Colors.black)],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(20.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                      _buildDetailRow(Icons.pets, 'Raça', pet.breed ?? 'Não informado'),
-                _buildDetailRow(Icons.cake, 'Idade', '${pet.age} anos'),
-                      _buildDetailRow(Icons.fitness_center, 'Peso', '${pet.weight.toStringAsFixed(1)} kg'),
-                      _buildDetailRow(Icons.directions_run, 'Atividade', pet.activityLevel ?? 'Não informado'),
-                      const SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          TextButton.icon(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                              _showDeleteConfirmationDialog(context, pet.id!);
-                            },
-                            icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                            label: const Text('Excluir', style: TextStyle(color: Colors.redAccent)),
-                          ),
-                          ElevatedButton.icon(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                              _showPetFormDialog(pet: pet);
-                            },
-                            icon: const Icon(Icons.edit_outlined),
-                            label: const Text('Editar'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF7b4cfe),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showProductDetailsDialog(Product product) {
-    _showCustomDetailsDialog(
-      context: context,
-      title: product.name,
-      imageUrl: product.imageUrl,
-      imagePlaceholder: const Icon(Icons.shopping_bag_outlined, size: 60, color: Colors.grey),
-      children: [
-        _buildDetailRow(Icons.description, 'Descrição', product.description ?? 'Nenhuma descrição'),
-        _buildDetailRow(Icons.price_change, 'Preço', 'R\$ ${product.price.toStringAsFixed(2)}'),
-              _buildDetailRow(Icons.store, 'Vendido por', product.ownerName ?? 'Não informado'),
-        _buildDetailRow(Icons.location_on, 'Localização', product.ownerLocation ?? 'Não informado'),
-        if (product.ownerPhone != null)
-          _buildWhatsAppButton(product.ownerPhone!),
-            ],
-    );
-  }
-
-  void _showServiceDetailsDialog(VetService service) {
-    _showCustomDetailsDialog(
-      context: context,
-      title: service.name,
-      imageUrl: service.imageUrl,
-      imagePlaceholder: const Icon(Icons.local_hospital_outlined, size: 60, color: Colors.blueAccent),
-      children: [
-        _buildDetailRow(Icons.description, 'Descrição', service.description ?? 'Nenhuma descrição'),
-        _buildDetailRow(Icons.price_change, 'Preço', 'R\$ ${service.price.toStringAsFixed(2)}'),
-        _buildDetailRow(Icons.person, 'Oferecido por', service.ownerName ?? 'Não informado'),
-        _buildDetailRow(Icons.location_on, 'Localização', service.ownerLocation ?? 'Não informado'),
-        if (service.ownerCrmv != null)
-          _buildDetailRow(Icons.badge, 'CRMV', service.ownerCrmv!),
-        if (service.operatingHours != null)
-          _buildDetailRow(Icons.access_time, 'Horário', service.operatingHours!),
-        if (service.ownerPhone != null)
-          _buildWhatsAppButton(service.ownerPhone!),
-      ],
-    );
-  }
-
-  void _showCustomDetailsDialog({
-    required BuildContext context,
-    required String title,
-    String? imageUrl,
-    required Widget imagePlaceholder,
-    required List<Widget> children,
-  }) {
-    showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'Dismiss',
-      transitionDuration: const Duration(milliseconds: 400),
-      pageBuilder: (context, anim1, anim2) => Container(), // Page builder is not used
-      transitionBuilder: (context, anim1, anim2, child) {
-        return ScaleTransition(
-          scale: CurvedAnimation(parent: anim1, curve: Curves.elasticOut),
-          child: FadeTransition(
-            opacity: CurvedAnimation(parent: anim1, curve: Curves.easeOut),
-            child: AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-              titlePadding: const EdgeInsets.all(0),
-              contentPadding: const EdgeInsets.all(20),
-              title: ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(24),
-                  topRight: Radius.circular(24),
-                ),
-                child: Container(
-                  height: 180,
-                  decoration: BoxDecoration(
-                    image: imageUrl != null && imageUrl.isNotEmpty
-                        ? DecorationImage(
-                            image: NetworkImage(imageUrl),
-                            fit: BoxFit.cover,
-                          )
-                        : null,
-                  ),
-                  child: imageUrl == null || imageUrl.isEmpty
-                      ? Center(child: imagePlaceholder)
-                      : Container(
-                          alignment: Alignment.bottomLeft,
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.bottomCenter,
-                              end: Alignment.topCenter,
-                              colors: [Colors.black.withOpacity(0.7), Colors.transparent],
-                            ),
-                          ),
-                          child: Text(
-                            title,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              shadows: [Shadow(blurRadius: 2, color: Colors.black)],
-                            ),
-                          ),
-                        ),
-                ),
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: children,
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Fechar'),
-                )
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildDetailRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 20, color: Theme.of(context).primaryColor),
-          const SizedBox(width: 12),
-          Expanded(
+            Padding(
+              padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black54)),
-                const SizedBox(height: 2),
-                Text(value, style: const TextStyle(fontSize: 16)),
+                  Text(
+                    service.name,
+                    style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'R\$ ${service.price.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16),
+                  ),
               ],
             ),
           ),
-        ],
+            Container(
+              color: Colors.black.withOpacity(0.2),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.visibility, color: Colors.white70),
+                    onPressed: () => _showServiceDetailsDialog(service),
+                    tooltip: 'Visualizar',
+                  ),
+                ],
+              ),
+            )
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildWhatsAppButton(String phone) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 16.0),
-      child: Center(
-        child: ElevatedButton.icon(
-          onPressed: () => _launchWhatsApp(phone),
-          icon: const Icon(Icons.message, color: Colors.white),
-          label: const Text('Entrar em contato via WhatsApp'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF25D366),
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+  // --- MÉTODOS DE AÇÃO (Lançadores) ---
+  Future<void> _launchWhatsApp(String phoneNumber) async {
+    final String cleanPhoneNumber = phoneNumber.replaceAll(RegExp(r'[^0-9]'), '');
+    final String whatsappUrl = "https://wa.me/55$cleanPhoneNumber"; // Adiciona o código do Brasil (55)
+
+    final Uri uri = Uri.parse(whatsappUrl);
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+       if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Não foi possível abrir o WhatsApp para o número $phoneNumber')),
+        );
+      }
+    }
+  }
+
+  Future<void> _launchPhone(String phoneNumber) async {
+    final Uri phoneUri = Uri(scheme: 'tel', path: phoneNumber);
+    if (!await launchUrl(phoneUri)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Não foi possível ligar para $phoneNumber')),
+      );
+      }
+    }
+  }
+
+  // --- CALCULADORA DE RAÇÃO ---
+  void _showFoodCalculatorDialog() {
+    _showAnimatedDialog(
+      title: 'Calculadora de Ração',
+      content: StatefulBuilder(builder: (context, setModalState) {
+        return _buildFoodCalculatorForm(setModalState);
+      }),
+      onSave: null
+    );
+  }
+  
+  Widget _buildFoodCalculatorForm(StateSetter setModalState) {
+    final dataProvider = Provider.of<DataProvider>(context, listen: false);
+    final pets = dataProvider.pets;
+    return SizedBox(
+      width: 400,
+      child: Form(
+        key: _foodCalculatorFormKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (pets.isNotEmpty) ...[
+                DropdownButtonFormField<Pet>(
+                  value: null,
+                  hint: const Text('Usar pet cadastrado', style: TextStyle(color: Colors.white70)),
+                  items: pets.map((pet) => DropdownMenuItem(
+                    value: pet,
+                    child: Text('${pet.name} (${pet.weight}kg, ${pet.type})'),
+                  )).toList(),
+                  onChanged: (Pet? selectedPet) {
+                    if (selectedPet != null) {
+                      setModalState(() {
+                        _weightController.text = selectedPet.weight.toString();
+                        _calculatorPetType = selectedPet.type;
+                        if (selectedPet.type == 'Cachorro') {
+                          _calculatorPetSize = _getPetSize(selectedPet.weight);
+                        }
+                        _calculatorActivityLevel = selectedPet.activityLevel ?? 'Médio';
+                        _calculatorLifeStage = _getLifeStage(selectedPet.age, selectedPet.type);
+                        _isNeutered = false; // Reset neutered status
+                        _result = '';
+                      });
+                    }
+                  },
+                  style: const TextStyle(color: Colors.white),
+                  dropdownColor: const Color(0xFF6A5ACD),
+                  decoration: _inputDecoration('Selecione um Pet', Icons.pets),
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              _buildDropdownFormField(
+                value: _calculatorPetType,
+                items: ['Cachorro', 'Gato'],
+                onChanged: (value) => setModalState(() {
+                  _calculatorPetType = value!;
+                  _result = '';
+                }),
+                labelText: 'Tipo de Animal',
+                icon: Icons.pets,
+              ),
+              const SizedBox(height: 16),
+
+              _buildTextFormField(
+                controller: _weightController,
+                labelText: 'Peso do Pet (kg)',
+                icon: Icons.scale,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              ),
+              const SizedBox(height: 16),
+
+              if (_calculatorPetType == 'Cachorro') ...[
+                _buildDropdownFormField(
+                  value: _calculatorPetSize,
+                  items: ['Pequeno', 'Médio', 'Grande'],
+                  onChanged: (value) => setModalState(() {
+                    _calculatorPetSize = value!;
+                     _result = '';
+                  }),
+                  labelText: 'Porte do Pet',
+                  icon: Icons.height,
+                ),
+                const SizedBox(height: 16),
+              ],
+              
+              _buildDropdownFormField(
+                value: _calculatorActivityLevel,
+                items: ['Baixo', 'Médio', 'Alto'],
+                onChanged: (value) => setModalState(() {
+                  _calculatorActivityLevel = value!;
+                  _result = '';
+                }),
+                labelText: 'Nível de Atividade',
+                icon: Icons.directions_run,
+              ),
+              const SizedBox(height: 16),
+
+              _buildDropdownFormField(
+                value: _calculatorLifeStage,
+                items: ['Filhote', 'Adulto', 'Sênior'],
+                onChanged: (value) => setModalState(() {
+                  _calculatorLifeStage = value!;
+                  _result = '';
+                }),
+                labelText: 'Estágio de Vida',
+                icon: Icons.cake,
+              ),
+              const SizedBox(height: 16),
+
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: CheckboxListTile(
+                  title: const Text('Castrado/Neutrado', style: TextStyle(color: Colors.white)),
+                  value: _isNeutered,
+                  onChanged: (bool? value) => setModalState(() {
+                    _isNeutered = value ?? false;
+                    _result = '';
+                  }),
+                  activeColor: const Color(0xFF667eea),
+                  checkColor: Colors.white,
+                  controlAffinity: ListTileControlAffinity.leading,
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              ElevatedButton.icon(
+                icon: const Icon(Icons.calculate_outlined, color: Colors.white),
+                label: const Text('Calcular Recomendação', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                onPressed: () {
+                  if (_foodCalculatorFormKey.currentState!.validate()) {
+                    _calculateFood(setModalState);
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF667eea),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  elevation: 5,
+                ),
+              ),
+
+              if (_result.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 20.0),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white.withOpacity(0.2)),
+                    ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.restaurant_menu, color: Colors.white70, size: 24),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Recomendação de Alimentação',
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        _buildResultSection('Quantidade Diária', _getDailyAmount()),
+                        const SizedBox(height: 8),
+                        _buildResultSection('Refeições', _getMealsInfo()),
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.warning_amber, color: Colors.orange, size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Esta é uma estimativa. Consulte sempre um veterinário para orientações específicas.',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.orange.shade100,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+            ],
+          ),
+        ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _calculateFood(StateSetter setModalState) {
+    final double weight = double.tryParse(_weightController.text.replaceAll(',', '.')) ?? 0;
+    if (weight <= 0) return;
+    
+    setModalState(() {
+      _result = 'calculated'; // Apenas um marcador para mostrar o resultado
+    });
+  }
+
+  String _getPetSize(double weight) {
+    if (weight < 10) return 'Pequeno';
+    if (weight < 25) return 'Médio';
+    return 'Grande';
+  }
+
+  String _getLifeStage(int age, String petType) {
+    if (petType == 'Cachorro') {
+      if (age < 1) return 'Filhote';
+      if (age < 7) return 'Adulto';
+      return 'Sênior';
+    } else {
+      if (age < 1) return 'Filhote';
+      if (age < 11) return 'Adulto';
+      return 'Sênior';
+    }
+  }
+
+  Widget _buildResultSection(String title, String content) {
+    return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.white.withOpacity(0.7),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          content,
+          style: const TextStyle(
+            fontSize: 16,
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _getDailyAmount() {
+    final double weight = double.tryParse(_weightController.text.replaceAll(',', '.')) ?? 0;
+    if (weight <= 0) return '0g';
+
+    double baseAmount;
+    if (_calculatorPetType == 'Gato') {
+      baseAmount = weight * 15;
+    } else {
+      if (_calculatorPetSize == 'Pequeno') {
+        baseAmount = weight * 30;
+      } else if (_calculatorPetSize == 'Médio') {
+        baseAmount = weight * 25;
+      } else {
+        baseAmount = weight * 20;
+      }
+    }
+
+    double lifeStageMultiplier = 1.0;
+    if (_calculatorLifeStage == 'Filhote') {
+      lifeStageMultiplier = 1.5;
+    } else if (_calculatorLifeStage == 'Sênior') {
+      lifeStageMultiplier = 0.8;
+    }
+
+    double activityMultiplier = 1.0;
+    if (_calculatorActivityLevel == 'Baixo') {
+      activityMultiplier = 0.8;
+    } else if (_calculatorActivityLevel == 'Alto') {
+      activityMultiplier = 1.2;
+    }
+
+    double neuteredMultiplier = _isNeutered ? 0.8 : 1.0;
+    final totalAmount = baseAmount * lifeStageMultiplier * activityMultiplier * neuteredMultiplier;
+    
+    return '${totalAmount.toStringAsFixed(0)}g por dia';
+  }
+
+  String _getMealsInfo() {
+    int mealsPerDay;
+    if (_calculatorLifeStage == 'Filhote') {
+      mealsPerDay = 4;
+    } else if (_calculatorLifeStage == 'Sênior') {
+      mealsPerDay = 2;
+    } else {
+      mealsPerDay = 2;
+    }
+
+    final double weight = double.tryParse(_weightController.text.replaceAll(',', '.')) ?? 0;
+    if (weight <= 0) return '0g por refeição';
+
+    double baseAmount;
+    if (_calculatorPetType == 'Gato') {
+      baseAmount = weight * 15;
+    } else {
+      if (_calculatorPetSize == 'Pequeno') {
+        baseAmount = weight * 30;
+      } else if (_calculatorPetSize == 'Médio') {
+        baseAmount = weight * 25;
+      } else {
+        baseAmount = weight * 20;
+      }
+    }
+
+    double lifeStageMultiplier = 1.0;
+    if (_calculatorLifeStage == 'Filhote') {
+      lifeStageMultiplier = 1.5;
+    } else if (_calculatorLifeStage == 'Sênior') {
+      lifeStageMultiplier = 0.8;
+    }
+
+    double activityMultiplier = 1.0;
+    if (_calculatorActivityLevel == 'Baixo') {
+      activityMultiplier = 0.8;
+    } else if (_calculatorActivityLevel == 'Alto') {
+      activityMultiplier = 1.2;
+    }
+
+    double neuteredMultiplier = _isNeutered ? 0.8 : 1.0;
+    final totalAmount = baseAmount * lifeStageMultiplier * activityMultiplier * neuteredMultiplier;
+    final amountPerMeal = totalAmount / mealsPerDay;
+
+    return '$mealsPerDay refeições de ${amountPerMeal.toStringAsFixed(0)}g cada';
+  }
+
+  // --- DIALOGS E FORMULÁRIOS ---
+  void _showAnimatedDialog({
+    required String title,
+    required Widget content,
+    VoidCallback? onSave,
+  }) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: '',
+      transitionDuration: const Duration(milliseconds: 400),
+      pageBuilder: (context, animation1, animation2) => const SizedBox(),
+      transitionBuilder: (context, a1, a2, widget) {
+        final curvedValue = Curves.easeInOutBack.transform(a1.value) - 1.0;
+        return Transform(
+          transform: Matrix4.translationValues(0.0, curvedValue * 200, 0.0),
+          child: Opacity(
+            opacity: a1.value,
+            child: AlertDialog(
+              title: Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              backgroundColor: const Color(0xFF3a3a5c).withOpacity(0.95),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+                side: BorderSide(color: Colors.white.withOpacity(0.2)),
+              ),
+              content: content,
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Fechar', style: TextStyle(color: Colors.white70)),
+                ),
+                if (onSave != null)
+                  ElevatedButton(
+                    onPressed: onSave,
+                    child: const Text('Salvar'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF667eea),
+            ),
+          ),
+        ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPetForm() {
+    return SizedBox(
+      width: 400,
+      child: Form(
+            key: _petFormKey,
+            child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              _buildTextFormField(
+                controller: _petNameController,
+                labelText: 'Nome do Pet',
+                icon: Icons.pets,
+              ),
+              const SizedBox(height: 16),
+              _buildTextFormField(
+                controller: _petBreedController,
+                labelText: 'Raça',
+                icon: Icons.loyalty,
+              ),
+              const SizedBox(height: 16),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _buildTextFormField(
+                      controller: _petAgeController,
+                      labelText: 'Idade',
+                      icon: Icons.cake,
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildTextFormField(
+                      controller: _petWeightController,
+                      labelText: 'Peso (kg)',
+                      icon: Icons.scale,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _buildTextFormField(
+                    controller: _petPhotoUrlController,
+                labelText: 'URL da Foto',
+                icon: Icons.image,
+                    keyboardType: TextInputType.url,
+                isOptional: true,
+              ),
+              const SizedBox(height: 16),
+              _buildDropdownFormField(
+                value: _petType,
+                items: ['Cachorro', 'Gato'],
+                onChanged: (value) => setState(() => _petType = value!),
+                labelText: 'Tipo',
+                icon: Icons.pets,
+              ),
+              const SizedBox(height: 16),
+              _buildDropdownFormField(
+                value: _petActivityLevel,
+                items: ['Baixo', 'Médio', 'Alto'],
+                onChanged: (value) => setState(() => _petActivityLevel = value!),
+                labelText: 'Nível de Atividade',
+                icon: Icons.directions_run,
+              ),
+            ],
           ),
               ),
             ),
           );
   }
 
-  void _launchWhatsApp(String phone) async {
-    final whatsappUrl = 'https://wa.me/${phone.replaceAll(RegExp(r'[^\d]'), '')}';
-    final uri = Uri.parse(whatsappUrl);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Não foi possível abrir o WhatsApp')),
-      );
-    }
+  InputDecoration _inputDecoration(String label, IconData icon) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
+      prefixIcon: Icon(icon, color: Colors.white.withOpacity(0.8), size: 20),
+      filled: true,
+      fillColor: Colors.black.withOpacity(0.15),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: const Color(0xFF9370DB), width: 2),
+      ),
+    );
+  }
+
+  Widget _buildTextFormField({
+    required TextEditingController controller,
+    required String labelText,
+    required IconData icon,
+    TextInputType? keyboardType,
+    bool isOptional = false,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      style: const TextStyle(color: Colors.white),
+      decoration: _inputDecoration(labelText, icon),
+      validator: (v) {
+        if (!isOptional && (v == null || v.isEmpty)) {
+          return 'Campo obrigatório';
+        }
+        return null;
+      },
+    );
+  }
+
+  Widget _buildDropdownFormField({
+    required String value,
+    required List<String> items,
+    required void Function(String?) onChanged,
+    required String labelText,
+    required IconData icon,
+  }) {
+    return DropdownButtonFormField<String>(
+      value: value,
+      items: items.map((item) => DropdownMenuItem(value: item, child: Text(item))).toList(),
+      onChanged: onChanged,
+      style: const TextStyle(color: Colors.white),
+      dropdownColor: const Color(0xFF6A5ACD),
+      decoration: _inputDecoration(labelText, icon),
+    );
   }
 }
 
-// --- CUSTOM PAINTER PARA AS PATINHAS ---
+// --- CLASSES AUXILIARES (Animação) ---
 
 class _Paw {
   Offset position;
-  double scale;
-  double opacity;
-  double speed;
+  final double scale;
+  final double opacity;
+  final double speed;
 
-  _Paw({
-    required this.position,
-    required this.scale,
-    required this.opacity,
-    required this.speed,
-  });
+  _Paw(
+      {required this.position,
+      required this.scale,
+      required this.opacity,
+      required this.speed});
+
+  void update(Size size) {
+    position = Offset(position.dx, position.dy - speed * 0.1);
+    if (position.dy < -50) {
+      position = Offset(Random().nextDouble() * size.width, size.height + 50);
+    }
+  }
 }
 
-class _PawPrintPainter extends CustomPainter {
+class _PawPainter extends CustomPainter {
   final List<_Paw> paws;
-  final Random _random = Random();
+  final double animationValue;
 
-  _PawPrintPainter(this.paws);
+  _PawPainter({required this.paws, required this.animationValue});
 
   @override
   void paint(Canvas canvas, Size size) {
-    for (var paw in paws) {
-      final paint = Paint()
-        ..color = Colors.white.withOpacity(paw.opacity)
-        ..style = PaintingStyle.fill;
-      
-      final angle = _random.nextDouble() * 0.5 - 0.25; // Pequena variação no ângulo
+    final paint = Paint()..style = PaintingStyle.fill;
+    
+    for (final paw in paws) {
+      paw.update(size);
 
-      canvas.save();
-      canvas.translate(paw.position.dx, paw.position.dy);
-      canvas.rotate(angle);
-      canvas.scale(paw.scale);
-      
-      _drawIndividualPaw(canvas, Offset.zero, paint);
+      paint.color = Colors.white.withOpacity(paw.opacity);
 
-      canvas.restore();
+      final pawSize = 20.0 * paw.scale;
+      final center = paw.position;
+
+      final mainPad = RRect.fromRectAndRadius(
+        Rect.fromCenter(center: center, width: pawSize, height: pawSize * 0.9),
+        Radius.circular(pawSize * 0.3),
+      );
+      canvas.drawRRect(mainPad, paint);
+
+      final toeSize = pawSize * 0.25;
+      final toeY = center.dy - (pawSize * 0.6);
+      final toeY2 = toeY - toeSize * 0.5;
+      
+      canvas.drawCircle(Offset(center.dx - pawSize * 0.4, toeY), toeSize, paint);
+      canvas.drawCircle(Offset(center.dx + pawSize * 0.4, toeY), toeSize, paint);
+      canvas.drawCircle(Offset(center.dx - pawSize * 0.15, toeY2), toeSize, paint);
+      canvas.drawCircle(Offset(center.dx + pawSize * 0.15, toeY2), toeSize, paint);
     }
   }
 
-  void _drawIndividualPaw(Canvas canvas, Offset center, Paint paint) {
-    // Palma
-    final mainPad = Rect.fromCenter(center: center, width: 20, height: 18);
-    canvas.drawRRect(RRect.fromRectAndRadius(mainPad, const Radius.circular(5)), paint);
-    // Dedos
-    canvas.drawCircle(center + const Offset(0, -14), 5, paint);
-    canvas.drawCircle(center + const Offset(-10, -8), 4.5, paint);
-    canvas.drawCircle(center + const Offset(10, -8), 4.5, paint);
-    canvas.drawCircle(center + const Offset(-6, 2), 4, paint);
-    canvas.drawCircle(center + const Offset(6, 2), 4, paint);
-  }
-
   @override
-  bool shouldRepaint(covariant _PawPrintPainter oldDelegate) => true;
+  bool shouldRepaint(covariant _PawPainter oldDelegate) => true;
 } 

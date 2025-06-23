@@ -64,9 +64,9 @@ class DataProvider extends ChangeNotifier {
   Future<void> fetchPetsForTutor(int tutorId) async {
     _isLoading = true;
     _error = null;
-    notifyListeners();
     try {
-      _pets = await ApiService.getPets(tutorId: tutorId);
+      _pets.clear();
+      _pets.addAll(await ApiService.getPets(tutorId: tutorId));
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -82,7 +82,8 @@ class DataProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      _products = await ApiService.getProducts();
+      _products.clear();
+      _products.addAll(await ApiService.getProducts());
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -98,7 +99,8 @@ class DataProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      _vetServices = await ApiService.getVetServices();
+      _vetServices.clear();
+      _vetServices.addAll(await ApiService.getVetServices());
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -108,81 +110,119 @@ class DataProvider extends ChangeNotifier {
     }
   }
 
-  // Criar pet
-  Future<bool> createPet(Pet pet) async {
+  // --- MÉTODO CENTRALIZADO PARA CARREGAR DADOS DO TUTOR ---
+  Future<void> fetchAllDataForTutor(int tutorId) async {
+    // Evita múltiplas chamadas se já estiver carregando
+    if (_isLoading) return;
+
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    // Notifica o início do carregamento. Faz isso de forma assíncrona
+    // para não causar erro de "setState() or markNeedsBuild() called during build".
+    Future.microtask(() => notifyListeners());
 
+    try {
+      // Busca todos os dados em paralelo para mais eficiência
+      final petsData = ApiService.getPets(tutorId: tutorId);
+      final productsData = ApiService.getAllProducts();
+      final servicesData = ApiService.getAllVetServices();
+
+      // Aguarda todas as chamadas terminarem
+      final results = await Future.wait([petsData, productsData, servicesData]);
+
+      // Atribui os resultados de forma segura
+      _pets = results[0] as List<Pet>;
+      _products = results[1] as List<Product>;
+      _vetServices = results[2] as List<VetService>;
+
+    } catch (e) {
+      _error = 'Erro ao carregar os dados: $e';
+    } finally {
+      _isLoading = false;
+      // Notifica a UI que o carregamento terminou (com sucesso ou erro)
+      notifyListeners();
+    }
+  }
+
+  // --- MÉTODOS DE MANIPULAÇÃO DE DADOS REATORIZADOS ---
+
+  /// Adiciona um novo pet e recarrega todos os dados para manter a consistência.
+  Future<bool> createPet(Pet pet, int tutorId) async {
     try {
       final createdPet = await ApiService.createPet(pet);
       if (createdPet != null) {
-        _pets.add(createdPet);
-        _isLoading = false;
-        notifyListeners();
+        // Em vez de manipular a lista local, busca a lista fresca do servidor.
+        await fetchAllDataForTutor(tutorId);
         return true;
-      } else {
-        _error = 'Erro ao criar pet';
-        _isLoading = false;
+      }
+      _error = 'Falha ao criar o pet no servidor.';
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _error = 'Erro de conexão ao criar o pet: $e';
         notifyListeners();
         return false;
       }
-    } catch (e) {
-      _error = 'Erro ao criar pet: $e';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
   }
 
-  // Atualizar pet
-  Future<bool> updatePet(int id, Pet pet) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+  /// Deleta um pet e recarrega todos os dados.
+  Future<bool> deletePet(int petId, int tutorId) async {
     try {
-      final updatedPet = await ApiService.updatePet(id, pet);
-      if (updatedPet != null) {
-        final index = _pets.indexWhere((p) => p.id == id);
-        if (index != -1) {
-          _pets[index] = updatedPet;
-        }
-        _isLoading = false;
-        notifyListeners();
-        return true;
-      }
-      _error = 'Erro ao atualizar pet';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    } catch (e) {
-      _error = 'Erro ao atualizar pet: $e';
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
-
-  // Deletar pet
-  Future<bool> deletePet(int id) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-    try {
-      final success = await ApiService.deletePet(id);
+      final success = await ApiService.deletePet(petId);
       if (success) {
-        _pets.removeWhere((p) => p.id == id);
-        _isLoading = false;
-        notifyListeners();
+        // Busca a lista fresca do servidor para garantir consistência.
+        await fetchAllDataForTutor(tutorId);
         return true;
       }
-      _error = 'Erro ao deletar pet';
-      _isLoading = false;
+      _error = 'Falha ao deletar o pet no servidor.';
       notifyListeners();
       return false;
     } catch (e) {
-      _error = 'Erro ao deletar pet: $e';
-      _isLoading = false;
+      _error = 'Erro de conexão ao deletar o pet: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Deleta um pet a partir do painel de admin.
+  Future<bool> deletePetFromAdmin(int petId) async {
+    try {
+      final success = await ApiService.deletePet(petId);
+      if (success) {
+        _pets.removeWhere((p) => p.id == petId);
+        notifyListeners();
+        return true;
+      }
+      _error = 'Falha ao deletar o pet no servidor.';
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _error = 'Erro de conexão ao deletar o pet: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Atualiza um pet e recarrega todos os dados para manter a consistência.
+  Future<bool> updatePet(Pet pet, int tutorId) async {
+    try {
+      // O ID do pet não pode ser nulo para uma atualização.
+      if (pet.id == null) {
+        _error = 'ID do pet inválido para atualização.';
+        notifyListeners();
+        return false;
+      }
+      final updatedPet = await ApiService.updatePet(pet.id!, pet);
+      if (updatedPet != null) {
+        // Recarrega os dados para refletir a mudança.
+        await fetchAllDataForTutor(tutorId);
+        return true;
+      }
+      _error = 'Falha ao atualizar o pet no servidor.';
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _error = 'Erro de conexão ao atualizar o pet: $e';
       notifyListeners();
       return false;
     }

@@ -139,15 +139,15 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
     final success = await authProvider.register(user, _selectedUserType!);
 
     if (mounted) {
-      if (success && authProvider.currentUser != null) {
-        _navigateToHome(authProvider.currentUser!);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+    if (success && authProvider.currentUser != null) {
+      _navigateToHome(authProvider.currentUser!);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
             content: Text(authProvider.error ?? 'Erro ao registrar. Verifique os dados.'),
             backgroundColor: Colors.redAccent,
-          ),
-        );
+        ),
+      );
       }
     }
   }
@@ -168,13 +168,13 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
         children: [
           // Fundo com gradiente
           Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
                 colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-              ),
-            ),
+          ),
+        ),
           ),
 
           // Animação de Patinhas
@@ -190,14 +190,14 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
 
           // Formulário central
           SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
+          child: Center(
+            child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 24.0),
                 child: _buildGlassmorphismContainer(
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                       children: _buildFormFields(),
                     ),
                   ),
@@ -218,11 +218,11 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
         child: Container(
           constraints: const BoxConstraints(maxWidth: 420),
           padding: const EdgeInsets.all(32),
-          decoration: BoxDecoration(
+                            decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.1),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: Colors.white.withOpacity(0.2)),
-          ),
+                            ),
           child: child,
         ),
       ),
@@ -236,15 +236,15 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
       // Logo e Título
       const Icon(Icons.pets, color: Colors.white, size: 48),
       const SizedBox(height: 16),
-      const Text(
-        'Criar Conta',
-        style: TextStyle(
-          fontSize: 28,
-          fontWeight: FontWeight.bold,
+                          const Text(
+                            'Criar Conta',
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
           color: Colors.white,
-        ),
-      ),
-      const SizedBox(height: 32),
+                            ),
+                          ),
+                          const SizedBox(height: 32),
 
       // Botão Selecionar Tipo
       _buildUserTypeButton(),
@@ -252,61 +252,61 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
 
       // Campos Comuns
       _buildTextField(
-        controller: _nameController,
+                            controller: _nameController,
         label: 'Nome',
         icon: Icons.person_outline,
         validator: (v) => (v == null || v.length < 3) ? 'Nome inválido' : null,
-      ),
-      const SizedBox(height: 16),
+                          ),
+                          const SizedBox(height: 16),
       _buildTextField(
-        controller: _emailController,
+                            controller: _emailController,
         label: 'Email',
         icon: Icons.email_outlined,
-        keyboardType: TextInputType.emailAddress,
+                            keyboardType: TextInputType.emailAddress,
         validator: (v) => (v == null || !v.contains('@')) ? 'Email inválido' : null,
-      ),
-      const SizedBox(height: 16),
+                          ),
+                          const SizedBox(height: 16),
       _buildTextField(
-        controller: _passwordController,
+                            controller: _passwordController,
         label: 'Senha',
         icon: Icons.lock_outline,
-        obscureText: _obscurePassword,
-        suffixIcon: IconButton(
-          icon: Icon(
+                            obscureText: _obscurePassword,
+                              suffixIcon: IconButton(
+                                icon: Icon(
             _obscurePassword ? Icons.visibility_off : Icons.visibility,
             color: Colors.white70,
-          ),
+                                ),
           onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-        ),
+                            ),
         validator: (v) => (v == null || v.length < 6) ? 'Senha muito curta (mín. 6)' : null,
-      ),
-      const SizedBox(height: 16),
+                          ),
+                          const SizedBox(height: 16),
       _buildTextField(
-        controller: _phoneController,
+                            controller: _phoneController,
         label: 'Telefone',
         icon: Icons.phone_outlined,
-        keyboardType: TextInputType.phone,
+                            keyboardType: TextInputType.phone,
         formatter: _phoneFormatter,
         validator: (v) => (v == null || v.length < 14) ? 'Telefone inválido' : null,
-      ),
-      const SizedBox(height: 16),
+                          ),
+                          const SizedBox(height: 16),
       _buildTextField(
-        controller: _locationController,
-        label: 'Localização',
-        icon: Icons.location_on_outlined,
-        validator: (v) {
-          if (v == null || v.trim().isEmpty) {
-            return 'Campo obrigatório';
-          }
-          return null;
-        },
-      ),
+                            controller: _locationController,
+        label: 'Localização (Cidade, UF)',
+        icon: Icons.location_city,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+            return 'Por favor, insira sua localização.';
+                                }
+                                return null;
+                              },
+                            ),
     ];
 
     // Campos Condicionais
     if (_selectedUserType == 'veterinario') {
       fields.addAll([
-        const SizedBox(height: 16),
+                            const SizedBox(height: 16),
         _buildTextField(
           controller: _crmvController,
           label: 'CRMV',
@@ -319,33 +319,33 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
       fields.addAll([
         const SizedBox(height: 16),
         _buildTextField(
-          controller: _cnpjController,
+                              controller: _cnpjController,
           label: 'CNPJ',
           icon: Icons.business_center_outlined,
           formatter: _cnpjFormatter,
            validator: (v) => (v == null || v.length < 18) ? 'CNPJ inválido' : null,
-        ),
-        const SizedBox(height: 16),
+                            ),
+                            const SizedBox(height: 16),
         _buildTextField(
-          controller: _responsibleNameController,
+                              controller: _responsibleNameController,
           label: 'Nome do Responsável',
           icon: Icons.badge_outlined,
           validator: (v) => (v == null || v.isEmpty) ? 'Campo obrigatório' : null,
-        ),
-        const SizedBox(height: 16),
+                            ),
+                            const SizedBox(height: 16),
          _buildTextField(
-          controller: _storeTypeController,
+                              controller: _storeTypeController,
           label: 'Tipo de Loja',
           icon: Icons.store_outlined,
           validator: (v) => (v == null || v.isEmpty) ? 'Campo obrigatório' : null,
-        ),
-         const SizedBox(height: 16),
+                            ),
+                            const SizedBox(height: 16),
          _buildTextField(
-          controller: _operatingHoursController,
+                              controller: _operatingHoursController,
           label: 'Horário de Funcionamento',
           icon: Icons.access_time_outlined,
           validator: (v) => (v == null || v.isEmpty) ? 'Campo obrigatório' : null,
-        ),
+                                ),
       ]);
     }
 
@@ -355,22 +355,22 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
       authProvider.isLoading
           ? const CircularProgressIndicator(color: Colors.white)
           : SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
+                                width: double.infinity,
+                                child: ElevatedButton(
                 onPressed: _register,
-                style: ElevatedButton.styleFrom(
+                                  style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   backgroundColor: const Color(0xFF9370DB),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
+                                  ),
                 child: const Text('Cadastrar', style: TextStyle(fontSize: 16, color: Colors.white)),
-              ),
-            ),
-      const SizedBox(height: 16),
-      TextButton(
+                                ),
+                          ),
+                          const SizedBox(height: 16),
+                          TextButton(
         onPressed: () => Navigator.of(context).pushReplacementNamed('/login'),
-        child: const Text(
-          'Já tem uma conta? Faça login',
+                            child: const Text(
+                              'Já tem uma conta? Faça login',
           style: TextStyle(color: Colors.white70),
         ),
       ),
@@ -402,7 +402,7 @@ class _RegisterScreenState extends State<RegisterScreen> with TickerProviderStat
               child: Opacity(
                 opacity: a1.value,
                 child: const UserTypeSelectionScreen(),
-              ),
+                            ),
             );
           },
         );

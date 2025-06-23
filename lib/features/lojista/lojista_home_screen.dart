@@ -9,6 +9,7 @@ import '../../models/pet.dart';
 import '../../models/product.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_provider.dart';
+import '../../core/widgets/custom_alert_dialog.dart';
 
 class LojistaHomeScreen extends StatefulWidget {
   const LojistaHomeScreen({super.key});
@@ -99,8 +100,8 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
   void _showAddProductDialog() {
     _clearForm();
     _showAnimatedDialog(
-      title: 'Adicionar Novo Produto',
-      onSave: _addProduct,
+        title: 'Adicionar Novo Produto',
+        onSave: _addProduct,
     );
   }
 
@@ -155,8 +156,8 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
     _productCategoryController.text = product.category ?? '';
 
     _showAnimatedDialog(
-      title: 'Editar Produto',
-      onSave: () => _updateProduct(product),
+        title: 'Editar Produto',
+        onSave: () => _updateProduct(product),
     );
   }
 
@@ -252,100 +253,80 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
     }
   }
 
-  void _showAnimatedDialog({required String title, required VoidCallback onSave}) {
-    showGeneralDialog(
+  void _showAnimatedDialog({required String title, required Future<void> Function() onSave}) {
+    showDialog(
       context: context,
-      barrierDismissible: true,
-      barrierLabel: '',
-      transitionDuration: const Duration(milliseconds: 400),
-      pageBuilder: (context, animation1, animation2) => const SizedBox(),
-      transitionBuilder: (context, a1, a2, widget) {
-        final curvedValue = Curves.easeInOutBack.transform(a1.value) - 1.0;
-        return Transform(
-          transform: Matrix4.translationValues(0.0, curvedValue * 200, 0.0),
-          child: Opacity(
-            opacity: a1.value,
-            child: _buildFormDialog(title: title, onSave: onSave),
+      builder: (context) {
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+          child: AlertDialog(
+            title: Text(title, style: const TextStyle(color: Colors.white)),
+            backgroundColor: const Color(0xFF3a3a5c).withOpacity(0.9),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(color: Colors.white.withOpacity(0.2)),
+            ),
+            content: _buildProductForm(),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancelar', style: TextStyle(color: Colors.white70)),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  await onSave();
+                },
+                child: const Text('Salvar'),
+              ),
+            ],
           ),
         );
       },
     );
   }
 
-  Widget _buildFormDialog({required String title, required VoidCallback onSave}) {
-    return AlertDialog(
-      title: Row(
-        children: [
-          Icon(title.startsWith('Adicionar') ? Icons.add_box_rounded : Icons.edit_rounded, color: Colors.white, size: 24),
-          const SizedBox(width: 12),
-          Text(title, style: const TextStyle(color: Colors.white)),
-        ],
-      ),
-      backgroundColor: const Color(0xFF6A5ACD).withOpacity(0.9), // Roxo da calculadora
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: Colors.white.withOpacity(0.3)),
-      ),
-      content: SizedBox(
-        width: 500,
-        child: Form(
-          key: _productFormKey,
+  Widget _buildProductForm() {
+    return Form(
+      key: _productFormKey,
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildTextFormField(
-                  controller: _productNameController,
-                  labelText: 'Nome do Produto',
-                  icon: Icons.shopping_bag,
-                ),
-                const SizedBox(height: 16),
-                _buildTextFormField(
-                  controller: _productDescriptionController,
-                  labelText: 'Descrição',
-                  icon: Icons.description,
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 16),
-                _buildTextFormField(
-                  controller: _productPriceController,
-                  labelText: 'Preço (R\$)',
-                  icon: Icons.attach_money,
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 16),
-                _buildTextFormField(
-                  controller: _productCategoryController,
-                  labelText: 'Categoria',
-                  icon: Icons.category,
-                ),
-                const SizedBox(height: 16),
-                _buildTextFormField(
-                  controller: _productImageUrlController,
-                  labelText: 'URL da Imagem do Produto',
-                  icon: Icons.image,
-                  keyboardType: TextInputType.url,
+            _buildTextFormField(
+              controller: _productNameController,
+              labelText: 'Nome do Produto',
+              icon: Icons.label,
+            ),
+            const SizedBox(height: 16),
+            _buildTextFormField(
+              controller: _productDescriptionController,
+              labelText: 'Descrição',
+              icon: Icons.description,
+              maxLines: 3,
+            ),
+            const SizedBox(height: 16),
+            _buildTextFormField(
+              controller: _productPriceController,
+              labelText: 'Preço',
+              icon: Icons.attach_money,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            ),
+            const SizedBox(height: 16),
+            _buildTextFormField(
+              controller: _productImageUrlController,
+              labelText: 'URL da Imagem',
+              icon: Icons.image,
+              isOptional: true,
+            ),
+            const SizedBox(height: 16),
+            _buildTextFormField(
+              controller: _productCategoryController,
+              labelText: 'Categoria',
+              icon: Icons.category,
                 ),
               ],
             ),
           ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar', style: TextStyle(color: Colors.white70)),
-        ),
-        ElevatedButton(
-          onPressed: onSave,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF9370DB), // Roxo mais claro
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          ),
-          child: const Text('Salvar'),
-        ),
-      ],
     );
   }
 
@@ -353,31 +334,31 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
     required TextEditingController controller,
     required String labelText,
     required IconData icon,
-    int? maxLines = 1,
-    TextInputType? keyboardType = TextInputType.text,
+    int maxLines = 1,
+    TextInputType? keyboardType,
+    bool isOptional = false,
   }) {
     return TextFormField(
       controller: controller,
-      keyboardType: keyboardType,
       maxLines: maxLines,
+      keyboardType: keyboardType,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         labelText: labelText,
-        labelStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
-        prefixIcon: Icon(icon, color: Colors.white.withOpacity(0.8), size: 20),
-        filled: true,
-        fillColor: Colors.black.withOpacity(0.15),
-        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
+        labelStyle: const TextStyle(color: Colors.white70),
+        prefixIcon: Icon(icon, color: Colors.white70),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: const Color(0xFF9370DB), width: 2), // Roxo mais claro
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Colors.deepPurpleAccent),
         ),
       ),
-      validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
+      validator: (value) {
+        if (!isOptional && (value == null || value.isEmpty)) {
+          return 'Este campo é obrigatório';
+        }
+        return null;
+      },
     );
   }
 
@@ -386,6 +367,21 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF667eea),
+        elevation: 0,
+        title: const Text("Painel do Lojista", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+            onPressed: () {
+              Provider.of<AuthProvider>(context, listen: false).logout();
+              Navigator.of(context).pushReplacementNamed('/login');
+            },
+            tooltip: 'Sair',
+          ),
+        ],
+      ),
       body: Stack(
         children: [
           // Fundo animado
@@ -410,9 +406,9 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
                 return CustomPaint(
                   painter: _PawPrintPainter(_paws, _pawAnimationController!.value),
                 );
-              },
-            ),
+            },
           ),
+      ),
           
           // Conteúdo principal
           SafeArea(
@@ -452,7 +448,7 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
                     const SliverToBoxAdapter(
                       child: SizedBox(height: 100),
                     ),
-                  ],
+              ],
           );
         },
       ),
@@ -476,7 +472,7 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
       decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(12),
-              ),
+      ),
               child: const Icon(
                 Icons.store,
                 color: Colors.white,
@@ -505,13 +501,6 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
                   ),
                 ],
               ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.logout, color: Colors.white),
-              onPressed: () {
-                Provider.of<AuthProvider>(context, listen: false).logout();
-                Navigator.of(context).pushReplacementNamed('/login');
-              },
             ),
           ],
         ),
@@ -575,72 +564,132 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
           Text(
             label,
             style: TextStyle(color: Colors.white.withOpacity(0.9)),
-          ),
-        ],
-      ),
+                ),
+              ],
+            ),
     );
   }
 
   Widget _buildSectionSelector() {
     return Container(
-      padding: const EdgeInsets.all(4),
+      margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(25),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Expanded(
-            child: _buildSelectorButton(
-              icon: Icons.shopping_bag_outlined,
-              label: 'Produtos',
-              isSelected: _selectedSection == 'products',
-              onTap: () => setState(() => _selectedSection = 'products'),
-            ),
-          ),
-          Expanded(
-            child: _buildSelectorButton(
-              icon: Icons.pets_outlined,
-              label: 'Pets',
-              isSelected: _selectedSection == 'pets',
-              onTap: () => setState(() => _selectedSection = 'pets'),
-            ),
-          ),
+          _buildSectionButton('products', 'Meus Produtos', Icons.shopping_bag),
+          _buildSectionButton('pets', 'Pets na Plataforma', Icons.pets),
         ],
       ),
     );
   }
 
-  Widget _buildSelectorButton({
-    required IconData icon,
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF667eea) : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: Colors.white, size: 18),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
+  Widget _buildSectionButton(String section, String label, IconData icon) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _selectedSection = section;
+          });
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: _selectedSection == section ? const Color(0xFF667eea) : Colors.transparent,
+            borderRadius: BorderRadius.circular(25),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSectionContent(DataProvider dataProvider) {
+    switch (_selectedSection) {
+      case 'products':
+        return _buildProductGrid(dataProvider.products);
+      case 'pets':
+        return _buildPetGrid(dataProvider.pets);
+      default:
+        return _buildProductGrid(dataProvider.products);
+    }
+  }
+
+  Widget _buildProductGrid(List<Product> products) {
+    if (products.isEmpty) {
+      return const SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.only(top: 100),
+          child: Center(
+            child: Column(
+              children: [
+                Icon(Icons.shopping_bag, size: 60, color: Colors.white30),
+                SizedBox(height: 16),
+                Text('Nenhum produto cadastrado.', style: TextStyle(color: Colors.white70)),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return SliverGrid(
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 400,
+        mainAxisSpacing: 20,
+        crossAxisSpacing: 20,
+        childAspectRatio: 0.9,
+      ),
+      delegate: SliverChildBuilderDelegate(
+        (context, index) => _buildProductCard(products[index]),
+        childCount: products.length,
+      ),
+    );
+  }
+
+  Widget _buildPetGrid(List<Pet> pets) {
+    if (pets.isEmpty) {
+      return const SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.only(top: 100),
+          child: Center(
+            child: Column(
+              children: [
+                Icon(Icons.pets, size: 60, color: Colors.white30),
+                SizedBox(height: 16),
+                Text('Nenhum pet encontrado na plataforma.', style: TextStyle(color: Colors.white70)),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return SliverGrid(
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 400,
+        mainAxisSpacing: 20,
+        crossAxisSpacing: 20,
+        childAspectRatio: 0.9,
+        ),
+        delegate: SliverChildBuilderDelegate(
+        (context, index) => _buildPetCard(pets[index]),
+        childCount: pets.length,
       ),
     );
   }
@@ -677,248 +726,220 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
     );
   }
 
-  Widget _buildSectionContent(DataProvider dataProvider) {
-    if (_selectedSection == 'products') {
-      final products = dataProvider.products;
-    if (products.isEmpty) {
-        return _buildEmptyState(
-          'Nenhum Produto Cadastrado',
-          'Adicione um novo produto no botão +',
-          Icons.shopping_bag,
-        );
-      }
-      return SliverGrid(
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 400.0,
-          mainAxisSpacing: 16.0,
-          crossAxisSpacing: 16.0,
-          childAspectRatio: 0.9,
-        ),
-        delegate: SliverChildBuilderDelegate(
-          (BuildContext context, int index) {
-            return _buildProductCard(products[index]);
-          },
-          childCount: products.length,
-        ),
-      );
-    } else if (_selectedSection == 'pets') {
-      final pets = dataProvider.pets;
-      if (pets.isEmpty) {
-        return _buildEmptyState(
-          'Nenhum Pet Encontrado',
-          'Ainda não há pets cadastrados na plataforma.',
-          Icons.pets,
-        );
-      }
-      return SliverGrid(
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 350.0,
-          mainAxisSpacing: 16.0,
-          crossAxisSpacing: 16.0,
-          childAspectRatio: 1.0,
-        ),
-        delegate: SliverChildBuilderDelegate(
-          (BuildContext context, int index) {
-            return _buildPetCard(pets[index]);
-          },
-          childCount: pets.length,
-      ),
-    );
-  }
-    // Fallback
-    return const SliverToBoxAdapter(child: SizedBox.shrink());
-  }
-
-  // --- Widgets para Seções Específicas ---
+  // --- WIDGETS DE CONSTRUÇÃO DE CARDS ---
 
   Widget _buildProductCard(Product product) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    return Card(
+      elevation: 4,
+      color: Colors.white.withOpacity(0.1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
-            flex: 3,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              child: Image.network(
-                product.imageUrl ?? '',
+              child: (product.imageUrl != null && product.imageUrl!.isNotEmpty)
+                ? ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16.0)),
+                    child: Image.network(
+                    product.imageUrl!,
                     fit: BoxFit.cover,
-                width: double.infinity,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
+                      width: double.infinity,
+                      height: double.infinity,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                    : null,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Carregando...',
+                                style: TextStyle(color: Colors.white.withOpacity(0.7)),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        print('Error loading product image: $error');
+                        print('URL: ${product.imageUrl}');
+                        return Container(
+                          color: Colors.black.withOpacity(0.2),
+                          child: const Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.shopping_bag, size: 60, color: Colors.white30),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Imagem não carregou',
+                                  style: TextStyle(color: Colors.white30, fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  )
+                : Container(
                     color: Colors.black.withOpacity(0.2),
                     child: const Center(
-                      child: Icon(Icons.shopping_bag, color: Colors.white, size: 50),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.shopping_bag, size: 60, color: Colors.white30),
+                          SizedBox(height: 8),
+                          Text(
+                            'Sem imagem',
+                            style: TextStyle(color: Colors.white30, fontSize: 12),
+                          ),
+                        ],
+                      ),
                     ),
-                  );
-                },
-              ),
+                  ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  product.name,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  product.description ?? '',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12, color: Colors.white70),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'R\$ ${product.price.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
             ),
           ),
-          Expanded(
-            flex: 4,
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    product.name,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                   if (product.category != null && product.category!.isNotEmpty)
-                    Text(
-                      product.category!,
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
-                        fontSize: 12,
-                        fontStyle: FontStyle.italic
-                      ),
-                    ),
-                  const Spacer(),
-                   Text(
-                    'R\$ ${product.price.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => _showEditProductDialog(product),
-                          icon: const Icon(Icons.edit, size: 16),
-                          label: const Text('Editar'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white.withOpacity(0.2),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            textStyle: const TextStyle(fontSize: 12),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => _handleDeleteProduct(product.id!),
-                          icon: const Icon(Icons.delete, size: 16),
-                          label: const Text('Excluir'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red.withOpacity(0.7),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            textStyle: const TextStyle(fontSize: 12),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+          Container(
+            color: Colors.black.withOpacity(0.2),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.edit, color: Colors.white70),
+                  onPressed: () => _showEditProductDialog(product),
+                  tooltip: 'Editar',
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.redAccent),
+                  onPressed: () => _handleDeleteProduct(product.id!),
+                  tooltip: 'Excluir',
+                ),
+              ],
             ),
-          ),
+          )
         ],
       ),
     );
   }
 
   Widget _buildPetCard(Pet pet) {
-    return Container(
-      decoration: BoxDecoration(
+    return GestureDetector(
+      onTap: () => _showPetDetailsDialog(pet),
+      child: Card(
+        elevation: 4,
         color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            flex: 3,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              child: Image.network(
-                pet.photoUrl ?? '',
-                fit: BoxFit.cover,
-                width: double.infinity,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: Colors.black.withOpacity(0.2),
-                    child: Center(
-                      child: Icon(
-                        pet.type == 'Gato' ? Icons.pets : Icons.pets, // Mudar ícone se quiser
-                        color: Colors.white,
-                        size: 50,
-                      ),
-                    ),
-                  );
-                },
-              ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        clipBehavior: Clip.antiAlias,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                flex: 3,
+                child: (pet.photoUrl != null && pet.photoUrl!.isNotEmpty)
+                    ? Image.network(
+                        pet.photoUrl!,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return const Center(child: CircularProgressIndicator(color: Colors.white));
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Center(child: Icon(Icons.broken_image, color: Colors.white70, size: 40));
+                        },
+                      )
+                    : Container(
+                        color: Colors.black.withOpacity(0.2),
+                        child: const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.pets, color: Colors.white70, size: 40),
+                              SizedBox(height: 8),
+                              Text('Sem Imagem', style: TextStyle(color: Colors.white70)),
+                            ],
+                          ),
+                        ),
             ),
           ),
           Expanded(
-            flex: 4,
+                flex: 4,
             child: Padding(
               padding: const EdgeInsets.all(12.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    pet.name,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                      Text(
+                        pet.name,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                   const SizedBox(height: 4),
-                  Text(
-                    '${pet.breed ?? 'SRD'} • ${pet.age} anos',
-                    style: TextStyle(color: Colors.white.withOpacity(0.8)),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Tutor: ${pet.tutor?['name'] ?? 'Não informado'}',
-                    style: TextStyle(color: Colors.white.withOpacity(0.7)),
-                     maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                      Text(
+                        pet.breed ?? 'Sem raça',
+                        style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const Spacer(),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                           Text(
+                            'Tutor: ${pet.ownerName ?? 'Não informado'}',
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.amber.shade200),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
                 ],
               ),
             ),
           ),
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -937,6 +958,94 @@ class _LojistaHomeScreenState extends State<LojistaHomeScreen> with TickerProvid
       );
     }
     return const SizedBox.shrink();
+  }
+
+  void _showPetDetailsDialog(Pet pet) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2C2C34).withOpacity(0.95),
+         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(pet.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (pet.photoUrl != null && pet.photoUrl!.isNotEmpty)
+                Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(pet.photoUrl!, height: 150, fit: BoxFit.cover),
+                  ),
+                ),
+              const SizedBox(height: 16),
+              _buildDetailRow(Icons.pets, 'Raça', pet.breed ?? 'Não informada'),
+              _buildDetailRow(Icons.cake, 'Idade', '${pet.age} anos'),
+              _buildDetailRow(Icons.scale, 'Peso', '${pet.weight} kg'),
+              _buildDetailRow(Icons.person, 'Tutor', pet.ownerName ?? 'Não informado'),
+              _buildDetailRow(Icons.phone, 'Contato', pet.ownerPhone ?? 'Não informado'),
+              if(pet.notes != null && pet.notes!.isNotEmpty)
+                 _buildDetailRow(Icons.notes, 'Notas', pet.notes!),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            child: const Text('Fechar', style: TextStyle(color: Colors.white70)),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          if (pet.ownerPhone != null && pet.ownerPhone!.isNotEmpty)
+            ElevatedButton.icon(
+              icon: const Icon(Icons.chat, size: 18),
+              label: const Text('Contatar Tutor'),
+              onPressed: () => _launchWhatsApp(pet.ownerPhone!),
+               style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: Colors.white.withOpacity(0.7), size: 18),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                 Text(label, style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
+                 const SizedBox(height: 2),
+                 Text(value, style: const TextStyle(color: Colors.white, fontSize: 15)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _launchWhatsApp(String phone) async {
+    final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    final whatsappUrl = "https://wa.me/55$cleanPhone";
+    
+    try {
+      await launchUrl(Uri.parse(whatsappUrl), mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Não foi possível abrir o WhatsApp: $e')),
+        );
+      }
+    }
   }
 }
 
@@ -995,7 +1104,7 @@ class _PawPrintPainter extends CustomPainter {
       canvas.drawCircle(Offset(center.dx + pawSize * 0.4, toeY), toeSize, paint);
       canvas.drawCircle(Offset(center.dx - pawSize * 0.15, toeY - toeSize * 0.5), toeSize, paint);
       canvas.drawCircle(Offset(center.dx + pawSize * 0.15, toeY - toeSize * 0.5), toeSize, paint);
-    }
+  }
   }
 
   @override

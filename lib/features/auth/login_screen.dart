@@ -32,12 +32,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   late Animation<double> _scaleAnimation;
   late Animation<double> _pawAnimation;
 
-  // Animações dos campos
-  late AnimationController _emailFocusController;
-  late AnimationController _passwordFocusController;
-  late Animation<double> _emailFocusAnimation;
-  late Animation<double> _passwordFocusAnimation;
-
   // Patinhas flutuantes
   final List<_Paw> _paws = [];
   final Random _random = Random();
@@ -67,16 +61,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       vsync: this,
     );
 
-    _emailFocusController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
-
-    _passwordFocusController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
-
     // Configurar animações
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _fadeController, curve: Curves.easeInOut),
@@ -93,14 +77,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
     _pawAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _pawController, curve: Curves.easeInOut),
-    );
-
-    _emailFocusAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
-      CurvedAnimation(parent: _emailFocusController, curve: Curves.easeInOut),
-    );
-
-    _passwordFocusAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
-      CurvedAnimation(parent: _passwordFocusController, curve: Curves.easeInOut),
     );
 
     // Iniciar animações
@@ -138,8 +114,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     _slideController.dispose();
     _scaleController.dispose();
     _pawController.dispose();
-    _emailFocusController.dispose();
-    _passwordFocusController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -328,85 +302,45 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                 const SizedBox(height: 40),
 
                 // Campo de email animado
-                AnimatedBuilder(
-                  animation: _emailFocusAnimation,
-                  builder: (context, child) {
-                    return Transform.scale(
-                      scale: _emailFocusAnimation.value,
-                      child: _buildAnimatedTextField(
+                          TextFormField(
                             controller: _emailController,
-                        label: 'Email',
-                        icon: Icons.email_rounded,
-                            keyboardType: TextInputType.emailAddress,
-                        onFocusChange: (hasFocus) {
-                          if (hasFocus) {
-                            _emailFocusController.forward();
-                          } else {
-                            _emailFocusController.reverse();
-                          }
-                        },
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor, insira seu email';
-                              }
-                              if (!value.contains('@')) {
-                                return 'Por favor, insira um email válido';
-                              }
-                              return null;
-                            },
+                  decoration: _buildInputDecoration(
+                              labelText: 'Email',
+                    prefixIcon: Icons.email_outlined,
+                              ),
+                  style: const TextStyle(color: Colors.white),
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (value) => (value == null || !value.contains('@'))
+                      ? 'Digite um email válido'
+                      : null,
                           ),
-                    );
-                  },
-                ),
                 const SizedBox(height: 20),
 
                 // Campo de senha animado
-                AnimatedBuilder(
-                  animation: _passwordFocusAnimation,
-                  builder: (context, child) {
-                    return Transform.scale(
-                      scale: _passwordFocusAnimation.value,
-                      child: _buildAnimatedTextField(
+                          TextFormField(
                             controller: _passwordController,
-                        label: 'Senha',
-                        icon: Icons.lock_rounded,
                             obscureText: _obscurePassword,
+                  decoration: _buildInputDecoration(
+                              labelText: 'Senha',
+                    prefixIcon: Icons.lock_outline,
                               suffixIcon: IconButton(
                                 icon: Icon(
-                            _obscurePassword ? Icons.visibility_rounded : Icons.visibility_off_rounded,
-                            color: Colors.white70,
+                        _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                        color: Colors.white.withOpacity(0.7),
                                 ),
-                                onPressed: () {
-                                  setState(() {
-                                    _obscurePassword = !_obscurePassword;
-                                  });
-                                },
+                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                    ),
                               ),
-                        onFocusChange: (hasFocus) {
-                          if (hasFocus) {
-                            _passwordFocusController.forward();
-                          } else {
-                            _passwordFocusController.reverse();
-                          }
-                        },
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Por favor, insira sua senha';
-                              }
-                              if (value.length < 6) {
-                                return 'A senha deve ter pelo menos 6 caracteres';
-                              }
-                              return null;
-                            },
-                                ),
-                              );
-                            },
-                          ),
+                  style: const TextStyle(color: Colors.white),
+                  validator: (value) => (value == null || value.length < 6)
+                      ? 'A senha deve ter pelo menos 6 caracteres'
+                      : null,
+                ),
                 const SizedBox(height: 32),
 
                 // Botão de login animado
                 _buildAnimatedButton(),
-                const SizedBox(height: 24),
+                          const SizedBox(height: 24),
 
                           // Link para registro
                 Row(
@@ -441,53 +375,29 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
   }
 
-  Widget _buildAnimatedTextField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    bool obscureText = false,
+  InputDecoration _buildInputDecoration({
+    required String labelText,
+    required IconData prefixIcon,
     Widget? suffixIcon,
-    TextInputType? keyboardType,
-    required Function(bool) onFocusChange,
-    String? Function(String?)? validator,
   }) {
-    return Focus(
-      onFocusChange: onFocusChange,
-      child: TextFormField(
-        controller: controller,
-        obscureText: obscureText,
-        keyboardType: keyboardType,
-        style: const TextStyle(color: Colors.white, fontSize: 16),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
-          prefixIcon: Icon(icon, color: Colors.white70),
-          suffixIcon: suffixIcon,
-          filled: true,
-          fillColor: Colors.white.withOpacity(0.1),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(color: Colors.white, width: 2),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(color: Colors.red, width: 2),
-          ),
-          focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(color: Colors.red, width: 2),
-          ),
-          errorStyle: const TextStyle(color: Colors.red),
-        ),
-        validator: validator,
+    return InputDecoration(
+      labelText: labelText,
+      labelStyle: TextStyle(color: Colors.white.withOpacity(0.8)),
+      prefixIcon: Icon(prefixIcon, color: Colors.white.withOpacity(0.8)),
+      suffixIcon: suffixIcon,
+      filled: true,
+      fillColor: Colors.white.withOpacity(0.1),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.white, width: 1.5),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
       ),
     );
   }

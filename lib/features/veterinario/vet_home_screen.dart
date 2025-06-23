@@ -98,8 +98,8 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
   void _showAddServiceDialog() {
     _clearForm();
     _showAnimatedDialog(
-      title: 'Adicionar Novo Serviço',
-      onSave: _addService,
+        title: 'Adicionar Novo Serviço',
+        onSave: _addService,
     );
   }
 
@@ -155,8 +155,8 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
     _serviceOperatingHoursController.text = service.operatingHours ?? '';
 
     _showAnimatedDialog(
-      title: 'Editar Serviço',
-      onSave: () => _updateService(service),
+        title: 'Editar Serviço',
+        onSave: () => _updateService(service),
     );
   }
 
@@ -255,7 +255,7 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
     }
   }
 
-  void _showAnimatedDialog({required String title, required VoidCallback onSave}) {
+  void _showAnimatedDialog({required String title, required Future<void> Function() onSave}) {
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
@@ -275,7 +275,7 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
     );
   }
 
-  Widget _buildFormDialog({required String title, required VoidCallback onSave}) {
+  Widget _buildFormDialog({required String title, required Future<void> Function() onSave}) {
     return AlertDialog(
       title: Row(
         children: [
@@ -305,7 +305,7 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
                 const SizedBox(height: 16),
                 _buildTextFormField(
                   controller: _serviceDescriptionController,
-                  labelText: 'Descrição',
+                  labelText: 'Descrição do Serviço',
                   icon: Icons.description,
                   maxLines: 3,
                 ),
@@ -318,16 +318,17 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
                 ),
                 const SizedBox(height: 16),
                 _buildTextFormField(
-                  controller: _serviceOperatingHoursController,
-                  labelText: 'Horário de Funcionamento',
-                  icon: Icons.access_time,
-                ),
-                const SizedBox(height: 16),
-                _buildTextFormField(
                   controller: _serviceImageUrlController,
                   labelText: 'URL da Imagem do Serviço',
                   icon: Icons.image,
                   keyboardType: TextInputType.url,
+                  isOptional: true,
+                ),
+                const SizedBox(height: 16),
+                _buildTextFormField(
+                  controller: _serviceOperatingHoursController,
+                  labelText: 'Horário de Funcionamento',
+                  icon: Icons.access_time,
                 ),
               ],
             ),
@@ -358,6 +359,7 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
     required IconData icon,
     int? maxLines = 1,
     TextInputType? keyboardType = TextInputType.text,
+    bool isOptional = false,
   }) {
     return TextFormField(
       controller: controller,
@@ -380,7 +382,12 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
           borderSide: BorderSide(color: const Color(0xFF9370DB), width: 2),
         ),
       ),
-      validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
+      validator: (v) {
+        if (!isOptional && (v == null || v.isEmpty)) {
+          return 'Campo obrigatório';
+        }
+        return null;
+      },
     );
   }
 
@@ -389,6 +396,21 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF667eea),
+        elevation: 0,
+        title: const Text("Painel do Veterinário", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+            onPressed: () {
+              Provider.of<AuthProvider>(context, listen: false).logout();
+              Navigator.of(context).pushReplacementNamed('/login');
+            },
+            tooltip: 'Sair',
+          ),
+        ],
+      ),
       body: Stack(
         children: [
           // Fundo animado
@@ -413,9 +435,9 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
                 return CustomPaint(
                   painter: _PawPrintPainter(_paws, _pawAnimationController!.value),
                 );
-              },
-            ),
+            },
           ),
+      ),
           
           // Conteúdo principal
           SafeArea(
@@ -455,7 +477,7 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
                     const SliverToBoxAdapter(
                       child: SizedBox(height: 100),
                     ),
-                  ],
+              ],
           );
         },
       ),
@@ -482,7 +504,7 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
       decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(12),
-              ),
+      ),
               child: const Icon(
                 Icons.local_hospital_rounded,
                 color: Colors.white,
@@ -511,13 +533,6 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
                   ),
               ],
             ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.logout, color: Colors.white),
-              onPressed: () {
-                Provider.of<AuthProvider>(context, listen: false).logout();
-                Navigator.of(context).pushReplacementNamed('/login');
-              },
             ),
           ],
         ),
@@ -646,10 +661,10 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
               ),
             ),
           ],
+          ),
         ),
-      ),
-    );
-  }
+      );
+    }
 
   Widget _buildEmptyState(String title, String message, IconData icon) {
     return SliverFillRemaining(
@@ -735,206 +750,181 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
     return const SliverToBoxAdapter(child: SizedBox.shrink());
   }
 
-  // --- Widgets para Seções Específicas ---
+  // --- WIDGETS DE CONSTRUÇÃO DE CARDS ---
 
   Widget _buildServiceCard(VetService service) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Card(
+      elevation: 4,
+      color: Colors.white.withOpacity(0.1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      clipBehavior: Clip.antiAlias,
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-          Expanded(
-            flex: 3,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              child: Image.network(
-                service.imageUrl ?? '',
-                fit: BoxFit.cover,
-                width: double.infinity,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: Colors.black.withOpacity(0.2),
-                    child: const Center(
-                      child: Icon(Icons.local_hospital, color: Colors.white, size: 50),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
             Expanded(
-            flex: 4,
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
+              flex: 3,
+              child: (service.imageUrl != null && service.imageUrl!.isNotEmpty)
+                  ? Image.network(
+                      service.imageUrl!,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return const Center(child: CircularProgressIndicator(color: Colors.white));
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Center(child: Icon(Icons.broken_image, color: Colors.white70, size: 40));
+                      },
+                    )
+                  : Container(
+                      color: Colors.black.withOpacity(0.2),
+                      child: const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.medical_services, color: Colors.white70, size: 40),
+                            SizedBox(height: 8),
+                            Text('Sem Imagem', style: TextStyle(color: Colors.white70)),
+                          ],
+                        ),
+                      ),
+                    ),
+            ),
+            Expanded(
+              flex: 4,
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    service.name,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                    Text(
+                      service.name,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
                   const SizedBox(height: 4),
                   Text(
-                    service.description ?? '',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
-                      fontSize: 12,
-                    ),
+                    service.description ?? 'Sem descrição',
+                      style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const Spacer(),
-                  Row(
-                    children: [
-                      Icon(Icons.access_time, color: Colors.white.withOpacity(0.8), size: 14),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          service.operatingHours ?? 'Não informado',
-                          style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
                   Text(
-                    'R\$ ${service.price.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => _showEditServiceDialog(service),
-                          icon: const Icon(Icons.edit, size: 16),
-                          label: const Text('Editar'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white.withOpacity(0.2),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            textStyle: const TextStyle(fontSize: 12),
-                          ),
+                          'R\$ ${service.price.toStringAsFixed(2).replaceAll('.', ',')}',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.amber),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => _handleDeleteService(service.id!),
-                          icon: const Icon(Icons.delete, size: 16),
-                          label: const Text('Excluir'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red.withOpacity(0.7),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            textStyle: const TextStyle(fontSize: 12),
-                          ),
-                        ),
-                      ),
-                    ],
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit, color: Colors.white70, size: 20),
+                              onPressed: () => _showEditServiceDialog(service),
+                              tooltip: 'Editar Serviço',
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.redAccent, size: 20),
+                              onPressed: () => _handleDeleteService(service.id!),
+                              tooltip: 'Excluir Serviço',
+                            ),
+                          ],
+                        )
+                      ],
                   ),
                 ],
               ),
             ),
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildPetCard(Pet pet) {
-    return Container(
-      decoration: BoxDecoration(
+    return GestureDetector(
+      onTap: () => _showPetDetailsDialog(pet),
+      child: Card(
+        elevation: 4,
         color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            flex: 3,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              child: Image.network(
-                pet.photoUrl ?? '',
-                fit: BoxFit.cover,
-                width: double.infinity,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: Colors.black.withOpacity(0.2),
-                    child: Center(
-                      child: Icon(
-                        pet.type == 'Gato' ? Icons.pets : Icons.pets,
-                        color: Colors.white,
-                        size: 50,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        clipBehavior: Clip.antiAlias,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                flex: 3,
+                child: (pet.photoUrl != null && pet.photoUrl!.isNotEmpty)
+                    ? Image.network(
+                        pet.photoUrl!,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return const Center(child: CircularProgressIndicator(color: Colors.white));
+                        },
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Center(child: Icon(Icons.broken_image, color: Colors.white70, size: 40));
+                        },
+                      )
+                    : Container(
+                        color: Colors.black.withOpacity(0.2),
+                        child: const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.pets, color: Colors.white70, size: 40),
+                              SizedBox(height: 8),
+                              Text('Sem Imagem', style: TextStyle(color: Colors.white70)),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                  );
-                },
               ),
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    pet.name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: Colors.white,
-                    ),
+              Expanded(
+                flex: 4,
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        pet.name,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        pet.breed ?? 'Sem raça',
+                        style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const Spacer(),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                           Text(
+                            'Tutor: ${pet.ownerName ?? 'Não informado'}',
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.amber.shade200),
+                             maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${pet.breed ?? 'SRD'} • ${pet.age} anos',
-                    style: TextStyle(color: Colors.white.withOpacity(0.7)),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Tutor: ${pet.tutor?['name'] ?? 'Não informado'}',
-                    style: TextStyle(color: Colors.white.withOpacity(0.7)),
-                  ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -954,6 +944,97 @@ class _VetHomeScreenState extends State<VetHomeScreen> with TickerProviderStateM
     }
     return const SizedBox.shrink();
   }
+
+  void _showPetDetailsDialog(Pet pet) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF2C2C34).withOpacity(0.95),
+         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(pet.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (pet.photoUrl != null && pet.photoUrl!.isNotEmpty)
+                Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(pet.photoUrl!, height: 150, fit: BoxFit.cover),
+                  ),
+                ),
+              const SizedBox(height: 16),
+              _buildDetailRow(Icons.pets, 'Raça', pet.breed ?? 'Não informada'),
+              _buildDetailRow(Icons.cake, 'Idade', '${pet.age} anos'),
+              _buildDetailRow(Icons.scale, 'Peso', '${pet.weight} kg'),
+              _buildDetailRow(Icons.person, 'Tutor', pet.ownerName ?? 'Não informado'),
+              _buildDetailRow(Icons.phone, 'Contato', pet.ownerPhone ?? 'Não informado'),
+              if(pet.notes != null && pet.notes!.isNotEmpty)
+                 _buildDetailRow(Icons.notes, 'Notas', pet.notes!),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            child: const Text('Fechar', style: TextStyle(color: Colors.white70)),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          if (pet.ownerPhone != null && pet.ownerPhone!.isNotEmpty)
+            ElevatedButton.icon(
+              icon: const Icon(Icons.chat, size: 18),
+              label: const Text('Contatar Tutor'),
+              onPressed: () => _launchWhatsApp(pet.ownerPhone!),
+               style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: Colors.white.withOpacity(0.7), size: 18),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                 Text(label, style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
+                 const SizedBox(height: 2),
+                 Text(value, style: const TextStyle(color: Colors.white, fontSize: 15)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _launchWhatsApp(String phone) async {
+    final cleanPhone = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    final whatsappUrl = "https://wa.me/55$cleanPhone";
+    
+    try {
+      await launchUrl(Uri.parse(whatsappUrl), mode: LaunchMode.externalApplication);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Não foi possível abrir o WhatsApp: $e')),
+        );
+      }
+    }
+  }
+
+  // --- ANIMAÇÃO DE PATINHAS ---
+  // (O restante do código permanece o mesmo)
 }
 
 // --- Classes de Animação e Pintura ---

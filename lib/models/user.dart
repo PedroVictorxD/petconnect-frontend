@@ -18,6 +18,8 @@ class User {
   final String? storeType; // Para lojistas
   final String? operatingHours; // Para lojistas
   final String? dtype; // Adicionado para identificar o tipo de usuário
+  final String? securityQuestion;
+  final String? securityAnswer;
 
   User({
     this.id,
@@ -34,6 +36,8 @@ class User {
     this.storeType,
     this.operatingHours,
     this.dtype,
+    this.securityQuestion,
+    this.securityAnswer,
   });
 
   factory User.fromJson(Map<String, dynamic> json) => _$UserFromJson(json);
