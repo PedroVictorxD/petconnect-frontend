@@ -1531,51 +1531,53 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
   }
 
   Widget _buildPetForm() {
-          return Form(
-            key: _petFormKey,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-            _buildTextFormField(
-                controller: _petNameController,
-                labelText: 'Nome do Pet',
-                icon: Icons.pets),
+    return Form(
+      key: _petFormKey,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            TextFormField(
+              controller: _petNameController,
+              decoration: const InputDecoration(labelText: 'Nome do Pet', icon: Icon(Icons.pets)),
+              validator: (value) => value!.isEmpty ? 'Campo obrigatório' : null,
+            ),
             const SizedBox(height: 16),
-            _buildTextFormField(
-                controller: _petBreedController,
-                labelText: 'Raça',
-                icon: Icons.loyalty),
+            TextFormField(
+              controller: _petBreedController,
+              decoration: const InputDecoration(labelText: 'Raça', icon: Icon(Icons.loyalty)),
+              validator: (value) => value!.isEmpty ? 'Campo obrigatório' : null,
+            ),
             const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
-                  child: _buildTextFormField(
+                  child: TextFormField(
                     controller: _petAgeController,
-                    labelText: 'Idade',
-                    icon: Icons.cake,
+                    decoration: const InputDecoration(labelText: 'Idade', icon: Icon(Icons.cake)),
                     keyboardType: TextInputType.number,
+                    validator: (value) => value!.isEmpty ? 'Campo obrigatório' : null,
                   ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: _buildTextFormField(
+                  child: TextFormField(
                     controller: _petWeightController,
-                    labelText: 'Peso (kg)',
-                    icon: Icons.scale,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(labelText: 'Peso (kg)', icon: Icon(Icons.scale)),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    validator: (value) => value!.isEmpty ? 'Campo obrigatório' : null,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            _buildTextFormField(
-                    controller: _petPhotoUrlController,
-              labelText: 'URL da Foto',
-              icon: Icons.image,
-                    keyboardType: TextInputType.url,
-              isOptional: true),
+            TextFormField(
+              controller: _petPhotoUrlController,
+              decoration: const InputDecoration(labelText: 'URL da Foto', icon: Icon(Icons.image)),
+              keyboardType: TextInputType.url,
+              maxLines: 1,
+            ),
             const SizedBox(height: 16),
             _buildDropdownFormField(
               value: _petType,
@@ -1591,11 +1593,11 @@ class _TutorHomeScreenState extends State<TutorHomeScreen> with TickerProviderSt
               onChanged: (value) => setState(() => _petActivityLevel = value!),
               labelText: 'Nível de Atividade',
               icon: Icons.directions_run,
-                  ),
-                ],
-              ),
             ),
-          );
+          ],
+        ),
+      ),
+    );
   }
 
   InputDecoration _inputDecoration(String label, IconData icon) {

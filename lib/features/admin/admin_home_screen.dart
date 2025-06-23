@@ -120,19 +120,29 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> with TickerProviderSt
   }
 
   Widget _buildStatsGrid(DataProvider dataProvider) {
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: 4,
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
-      childAspectRatio: 1.5,
-      children: [
-        _buildStatCard(Icons.people_alt_rounded, 'Usuários', dataProvider.allUsers.length.toString(), Colors.blue),
-        _buildStatCard(Icons.pets_rounded, 'Pets', dataProvider.pets.length.toString(), Colors.orange),
-        _buildStatCard(Icons.shopping_bag_rounded, 'Produtos', dataProvider.products.length.toString(), Colors.green),
-        _buildStatCard(Icons.medical_services_rounded, 'Serviços', dataProvider.vetServices.length.toString(), Colors.purple),
-      ],
+    final stats = [
+      _buildStatCard(Icons.people_alt_rounded, 'Usuários', dataProvider.allUsers.length.toString(), Colors.blue),
+      _buildStatCard(Icons.pets_rounded, 'Pets', dataProvider.pets.length.toString(), Colors.orange),
+      _buildStatCard(Icons.shopping_bag_rounded, 'Produtos', dataProvider.products.length.toString(), Colors.green),
+      _buildStatCard(Icons.medical_services_rounded, 'Serviços', dataProvider.vetServices.length.toString(), Colors.purple),
+    ];
+
+    return Wrap(
+      spacing: 16,
+      runSpacing: 16,
+      children: stats.map((card) {
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final idealWidth = (constraints.maxWidth - 16 * 3) / 4;
+            return ConstrainedBox(
+              constraints: BoxConstraints(
+                minWidth: idealWidth > 100 ? idealWidth : 100,
+              ),
+              child: card,
+            );
+          },
+        );
+      }).toList(),
     );
   }
 
@@ -147,9 +157,9 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> with TickerProviderSt
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(icon, size: 32, color: color),
+          Icon(icon, size: 28, color: color),
           const SizedBox(height: 8),
-          Text(value, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
+          Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
           const SizedBox(height: 4),
           Text(title, style: TextStyle(color: color.withOpacity(0.8)), textAlign: TextAlign.center),
         ],
